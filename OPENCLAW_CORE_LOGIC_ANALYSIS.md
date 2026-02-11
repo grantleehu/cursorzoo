@@ -412,6 +412,83 @@ class CronService {
 - 独立 Agent 会话执行
 - 结果投递到指定频道
 
+#### Cron 任务执行的完整函数调用链
+
+Cron 定时任务到期后，根据 `sessionTarget` 的不同，分为 **两条执行路径**:
+
+**路径一: `sessionTarget = "main"` (主会话注入)**
+
+```
+CronService.start()
+  → ops.start(state)                          // service/ops.ts
+    → armTimer(state)                          // service/timer.ts — 设置 setTimeout
+      → onTimer(state)                         // 到期时触发
+        → findDueJobs(state)                   // 找到到期任务
+        → executeJobCore(state, job)           // service/timer.ts:392
+          → resolveJobPayloadTextForMain(job)  // 取出 systemEvent 文本
+          → state.deps.enqueueSystemEvent(text)
+            → enqueueSystemEvent(text, {sessionKey})  // infra/system-events.ts:51
+              // 将文本放入内存中的 session 事件队列
+          → state.deps.requestHeartbeatNow()
+            → requestHeartbeatNow()            // infra/heartbeat-wake.ts
+              → schedule(coalesceMs)           // 延迟 250ms 合并
+                → handler({reason})
+                  → runHeartbeatOnce()         // infra/heartbeat-runner.ts
+                    → getReplyFromConfig(ctx, {isHeartbeat: true})
+                      // ← 这是 auto-reply/reply/get-reply.ts 的核心入口
+                      → runPreparedReply()     // get-reply-run.ts
+                        → runReplyAgent()      // agent-runner.ts
+                          → runEmbeddedPiAgent()  // agents/pi-embedded-runner/run.ts
+                            // AI 模型调用,system events 在 prompt 中注入
+```
+
+**路径二: `sessionTarget = "isolated"` (独立会话执行)**
+
+```
+CronService.start()
+  → ops.start(state)
+    → armTimer(state)
+      → onTimer(state)
+        → findDueJobs(state)
+        → executeJobCore(state, job)           // service/timer.ts:392
+          → state.deps.runIsolatedAgentJob({job, message})
+            // ↓ 在 gateway/server-cron.ts:78 绑定为:
+            → runCronIsolatedAgentTurn(params)  // cron/isolated-agent/run.ts:106
+              → resolveConfiguredModelRef()     // 解析模型
+              → ensureAgentWorkspace()          // 确保工作区
+              → resolveCronSession()            // 创建/恢复 cron 专用会话
+              → buildWorkspaceSkillSnapshot()   // 加载 Skills
+              → runWithModelFallback({          // agents/model-fallback.ts — 含 fallback
+                  run: (provider, model) => {
+                    // CLI provider 走 runCliAgent:
+                    → runCliAgent(...)          // agents/cli-runner.ts
+                    // 普通 provider 走 runEmbeddedPiAgent:
+                    → runEmbeddedPiAgent({      // agents/pi-embedded-runner/run.ts
+                        prompt: commandBody,    // "[cron:id name] message\n当前时间"
+                        lane: "cron",           // cron 专用并发 lane
+                        ...
+                      })
+                  }
+                })
+              → deliverOutboundPayloads()       // 投递结果到频道
+              // 或:
+              → runSubagentAnnounceFlow()       // 通过子代理通告流程投递
+```
+
+**核心执行函数总结:**
+
+| 函数 | 位置 | 职责 |
+|------|------|------|
+| `executeJobCore()` | `src/cron/service/timer.ts:392` | Cron 任务执行的入口分发 |
+| `enqueueSystemEvent()` | `src/infra/system-events.ts:51` | main 模式: 将文本放入事件队列 |
+| `requestHeartbeatNow()` | `src/infra/heartbeat-wake.ts` | main 模式: 请求立即执行 heartbeat |
+| `runHeartbeatOnce()` | `src/infra/heartbeat-runner.ts` | main 模式: 执行 heartbeat（带 system events） |
+| `getReplyFromConfig()` | `src/auto-reply/reply/get-reply.ts:53` | main 模式最终调用: 走完整 auto-reply 管线 |
+| `runCronIsolatedAgentTurn()` | `src/cron/isolated-agent/run.ts:106` | isolated 模式: 独立会话运行 |
+| `runEmbeddedPiAgent()` | `src/agents/pi-embedded-runner/run.ts:137` | **最终的 AI 模型调用** (两条路径都汇聚于此) |
+| `runCliAgent()` | `src/agents/cli-runner.ts` | CLI provider 的替代执行路径 |
+| `deliverOutboundPayloads()` | `src/infra/outbound/deliver.ts` | 将结果投递到通讯频道 |
+
 ### 3.10 Configuration 系统 (`src/config/`)
 
 使用 **JSON5** 格式的配置文件，位于 `~/.config/openclaw/config.json5`:
