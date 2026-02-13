@@ -1,2 +1,26 @@
-readme
-start
+# Sudoku Cloudflare Worker (Single JS File)
+
+This project is now a **single JavaScript Cloudflare Worker**:
+
+- `worker.js` (contains Worker handler + embedded HTML/CSS/JS game)
+
+## Features
+- Sudoku puzzle generation with unique-solution checks
+- Three difficulties: easy, medium, hard
+- Timer, mistakes limit, hint, check, reset, and solve
+- Touch-first controls optimized for iPad
+  - Safe-area support (`env(safe-area-inset-*)`)
+  - Large tap targets for buttons and grid cells
+  - Improved mobile web app meta settings
+
+## Run locally with Wrangler
+```bash
+npx wrangler dev worker.js
+```
+
+Then open the local URL shown by Wrangler.
+
+## Deploy
+```bash
+npx wrangler deploy worker.js
+```
