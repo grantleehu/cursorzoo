@@ -3,846 +3,892 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Arcade Bird</title>
+  <title>Sudoku Web Game</title>
   <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-soft: #1f2937;
+      --line: #3b4255;
+      --line-strong: #6b7280;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --primary: #22c55e;
+      --primary-soft: #14532d;
+      --danger: #ef4444;
+      --danger-soft: #7f1d1d;
+      --hint: #38bdf8;
+      --cell-size: clamp(34px, 8.8vw, 58px);
+    }
+
     * {
+      box-sizing: border-box;
       margin: 0;
       padding: 0;
-      box-sizing: border-box;
     }
+
     body {
-      background: #1a1a2e;
-      display: flex;
-      justify-content: center;
-      align-items: center;
       min-height: 100vh;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      overflow: hidden;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 15% 10%, #1e293b 0%, transparent 30%),
+        radial-gradient(circle at 85% 80%, #172554 0%, transparent 25%),
+        var(--bg);
+      color: var(--text);
+      font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 24px 12px;
     }
-    #gameContainer {
-      position: relative;
-      border-radius: 12px;
-      overflow: hidden;
+
+    .app {
+      width: min(680px, 100%);
+      background: color-mix(in srgb, var(--panel) 92%, black 8%);
+      border: 1px solid #263043;
+      border-radius: 16px;
+      padding: 20px;
       box-shadow:
-        0 0 40px rgba(255, 200, 50, 0.15),
-        0 20px 60px rgba(0, 0, 0, 0.5);
+        0 12px 36px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      display: grid;
+      gap: 16px;
     }
-    canvas {
-      display: block;
+
+    .title-wrap h1 {
+      font-size: clamp(24px, 4vw, 32px);
+      letter-spacing: 0.4px;
+    }
+
+    .title-wrap p {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    label {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    select,
+    button {
+      border-radius: 10px;
+      border: 1px solid #374151;
+      background: var(--panel-soft);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: 140ms ease;
+    }
+
+    select {
+      padding-right: 30px;
+      margin-left: 6px;
+      outline: none;
+    }
+
+    button:hover,
+    select:hover {
+      border-color: #4b5563;
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button.primary {
+      background: #14532d;
+      border-color: #166534;
+    }
+
+    button.warn {
+      background: #3f1c1c;
+      border-color: #7f1d1d;
+    }
+
+    .status {
+      background: #0b1220;
+      border: 1px solid #1f2b3f;
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .status-top {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      align-items: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    #message {
+      min-height: 20px;
+      font-size: 14px;
+      color: #cbd5e1;
+    }
+
+    #message[data-tone="success"] {
+      color: #86efac;
+    }
+
+    #message[data-tone="error"] {
+      color: #fca5a5;
+    }
+
+    #message[data-tone="info"] {
+      color: #7dd3fc;
+    }
+
+    .board-wrap {
+      display: grid;
+      place-content: center;
+      overflow-x: auto;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(9, var(--cell-size));
+      grid-template-rows: repeat(9, var(--cell-size));
+      border: 2px solid var(--line-strong);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #0b1220;
+      user-select: none;
+    }
+
+    .cell {
+      border: 1px solid var(--line);
+      background: #111827;
+      color: #dbeafe;
+      font-size: clamp(18px, 3.6vw, 28px);
+      font-weight: 600;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      width: var(--cell-size);
+      height: var(--cell-size);
+      border-radius: 0;
+    }
+
+    .cell:hover {
+      background: #172036;
+      transform: none;
+      border-color: #4b5563;
+    }
+
+    .cell.fixed {
+      color: #f9fafb;
+      background: #1f2937;
+      cursor: default;
+    }
+
+    .cell.empty {
+      color: transparent;
+    }
+
+    .cell.selected {
+      background: #1d4ed8;
+      color: #fff;
+      box-shadow: inset 0 0 0 1px #93c5fd;
+    }
+
+    .cell.related {
+      background: #1e293b;
+    }
+
+    .cell.same-value {
+      background: #10243a;
+      color: #93c5fd;
+    }
+
+    .cell.hinted {
+      color: #7dd3fc;
+    }
+
+    .cell.error {
+      background: #7f1d1d;
+      color: #fee2e2;
+    }
+
+    .box-top {
+      border-top-width: 2px;
+      border-top-color: var(--line-strong);
+    }
+
+    .box-left {
+      border-left-width: 2px;
+      border-left-color: var(--line-strong);
+    }
+
+    .box-right {
+      border-right-width: 2px;
+      border-right-color: var(--line-strong);
+    }
+
+    .box-bottom {
+      border-bottom-width: 2px;
+      border-bottom-color: var(--line-strong);
+    }
+
+    .number-pad {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(48px, 1fr));
+      gap: 8px;
+    }
+
+    .number-pad button {
+      padding: 12px 0;
+      font-size: 18px;
+      font-weight: 600;
+      border-radius: 10px;
+    }
+
+    .number-pad button[data-value="0"] {
+      grid-column: span 2;
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.2px;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    @media (max-width: 560px) {
+      .app {
+        padding: 14px;
+      }
+
+      .controls button,
+      .controls select {
+        padding: 9px 10px;
+      }
     }
   </style>
 </head>
 <body>
-  <div id="gameContainer">
-    <canvas id="gameCanvas"></canvas>
-  </div>
+  <main class="app" aria-label="Sudoku game">
+    <header class="title-wrap">
+      <h1>Sudoku</h1>
+      <p>Play directly in your browser with keyboard and number pad support.</p>
+    </header>
+
+    <section class="controls">
+      <label for="difficulty">Difficulty:</label>
+      <select id="difficulty">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+      <button id="newGame" class="primary">New Game</button>
+      <button id="resetBoard">Reset</button>
+      <button id="checkBoard">Check</button>
+      <button id="hintCell">Hint</button>
+      <button id="solveBoard" class="warn">Solve</button>
+    </section>
+
+    <section class="status" aria-live="polite">
+      <div class="status-top">
+        <span>Time: <strong id="timer">00:00</strong></span>
+        <span>Mistakes: <strong id="mistakes">0/3</strong></span>
+      </div>
+      <p id="message" data-tone="info">Choose a difficulty and start.</p>
+    </section>
+
+    <section class="board-wrap">
+      <div id="board" class="board" role="grid" aria-label="9 by 9 Sudoku board"></div>
+    </section>
+
+    <section class="number-pad" id="numberPad" aria-label="Number pad">
+      <button type="button" data-value="1">1</button>
+      <button type="button" data-value="2">2</button>
+      <button type="button" data-value="3">3</button>
+      <button type="button" data-value="4">4</button>
+      <button type="button" data-value="5">5</button>
+      <button type="button" data-value="6">6</button>
+      <button type="button" data-value="7">7</button>
+      <button type="button" data-value="8">8</button>
+      <button type="button" data-value="9">9</button>
+      <button type="button" data-value="0">Clear Cell</button>
+    </section>
+
+    <p class="hint">
+      Controls: click a cell then type 1-9, Backspace/Delete to clear, Arrow keys to move.
+      Three mistakes ends the round.
+    </p>
+  </main>
 
   <script>
-    // ─── Configuration ───────────────────────────────────────────────
-    const CONFIG = {
-      WIDTH: 400,
-      HEIGHT: 600,
-      GRAVITY: 0.45,
-      JUMP_FORCE: -7.5,
-      PIPE_SPEED: 2.5,
-      PIPE_WIDTH: 60,
-      PIPE_GAP: 150,
-      PIPE_SPAWN_INTERVAL: 100, // frames
-      BIRD_SIZE: 20,
-      BIRD_X: 80,
-      GROUND_HEIGHT: 80,
+    const BOARD_SIZE = 9;
+    const SUBGRID_SIZE = 3;
+    const CELL_COUNT = BOARD_SIZE * BOARD_SIZE;
+    const MAX_MISTAKES = 3;
+
+    const DIFFICULTIES = {
+      easy: { label: "Easy", removals: 40 },
+      medium: { label: "Medium", removals: 48 },
+      hard: { label: "Hard", removals: 54 },
     };
 
-    // ─── Canvas Setup ────────────────────────────────────────────────
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = CONFIG.WIDTH;
-    canvas.height = CONFIG.HEIGHT;
+    const boardElement = document.getElementById("board");
+    const difficultySelect = document.getElementById("difficulty");
+    const timerElement = document.getElementById("timer");
+    const mistakesElement = document.getElementById("mistakes");
+    const messageElement = document.getElementById("message");
+    const numberPad = document.getElementById("numberPad");
 
-    // ─── Game State ──────────────────────────────────────────────────
-    const STATE = {
-      MENU: 'menu',
-      PLAYING: 'playing',
-      GAME_OVER: 'gameOver',
+    const cellElements = [];
+
+    const state = {
+      initialPuzzle: [],
+      board: [],
+      solution: [],
+      fixedCells: new Set(),
+      hintedCells: new Set(),
+      errorCells: new Set(),
+      selectedIndex: null,
+      mistakes: 0,
+      elapsedSeconds: 0,
+      timerId: null,
+      status: "idle",
     };
 
-    let gameState = STATE.MENU;
-    let score = 0;
-    let highScore = parseInt(localStorage.getItem('arcadeBirdHighScore')) || 0;
-    let frameCount = 0;
-    let screenShake = 0;
-
-    // ─── Bird ────────────────────────────────────────────────────────
-    const bird = {
-      x: CONFIG.BIRD_X,
-      y: CONFIG.HEIGHT / 2,
-      velocity: 0,
-      rotation: 0,
-      wingPhase: 0,
-      trail: [],
-    };
-
-    // ─── Pipes ───────────────────────────────────────────────────────
-    let pipes = [];
-
-    // ─── Particles ───────────────────────────────────────────────────
-    let particles = [];
-
-    // ─── Stars (background) ──────────────────────────────────────────
-    const stars = [];
-    for (let i = 0; i < 50; i++) {
-      stars.push({
-        x: Math.random() * CONFIG.WIDTH,
-        y: Math.random() * (CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT),
-        size: Math.random() * 2 + 0.5,
-        twinkle: Math.random() * Math.PI * 2,
-        speed: Math.random() * 0.02 + 0.01,
-      });
+    function toIndex(row, col) {
+      return row * BOARD_SIZE + col;
     }
 
-    // ─── Clouds ──────────────────────────────────────────────────────
-    const clouds = [];
-    for (let i = 0; i < 5; i++) {
-      clouds.push({
-        x: Math.random() * CONFIG.WIDTH,
-        y: 40 + Math.random() * 150,
-        width: 60 + Math.random() * 80,
-        height: 20 + Math.random() * 20,
-        speed: 0.2 + Math.random() * 0.3,
-        opacity: 0.05 + Math.random() * 0.08,
-      });
+    function indexToRow(index) {
+      return Math.floor(index / BOARD_SIZE);
     }
 
-    // ─── Ground tiles ────────────────────────────────────────────────
-    let groundOffset = 0;
-
-    // ─── Helper Functions ────────────────────────────────────────────
-    function resetGame() {
-      bird.y = CONFIG.HEIGHT / 2;
-      bird.velocity = 0;
-      bird.rotation = 0;
-      bird.trail = [];
-      pipes = [];
-      particles = [];
-      score = 0;
-      frameCount = 0;
-      screenShake = 0;
+    function indexToCol(index) {
+      return index % BOARD_SIZE;
     }
 
-    function jump() {
-      if (gameState === STATE.MENU) {
-        resetGame();
-        gameState = STATE.PLAYING;
-        bird.velocity = CONFIG.JUMP_FORCE;
-        spawnJumpParticles();
-      } else if (gameState === STATE.PLAYING) {
-        bird.velocity = CONFIG.JUMP_FORCE;
-        spawnJumpParticles();
-      } else if (gameState === STATE.GAME_OVER) {
-        if (frameCount > 30) {
-          resetGame();
-          gameState = STATE.MENU;
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function getCandidates(board, index) {
+      if (board[index] !== 0) return [];
+
+      const row = indexToRow(index);
+      const col = indexToCol(index);
+      const used = new Set();
+
+      for (let c = 0; c < BOARD_SIZE; c += 1) {
+        const rowValue = board[toIndex(row, c)];
+        if (rowValue !== 0) used.add(rowValue);
+      }
+
+      for (let r = 0; r < BOARD_SIZE; r += 1) {
+        const colValue = board[toIndex(r, col)];
+        if (colValue !== 0) used.add(colValue);
+      }
+
+      const boxRow = Math.floor(row / SUBGRID_SIZE) * SUBGRID_SIZE;
+      const boxCol = Math.floor(col / SUBGRID_SIZE) * SUBGRID_SIZE;
+      for (let r = boxRow; r < boxRow + SUBGRID_SIZE; r += 1) {
+        for (let c = boxCol; c < boxCol + SUBGRID_SIZE; c += 1) {
+          const boxValue = board[toIndex(r, c)];
+          if (boxValue !== 0) used.add(boxValue);
         }
       }
-    }
 
-    function spawnJumpParticles() {
-      for (let i = 0; i < 6; i++) {
-        particles.push({
-          x: bird.x,
-          y: bird.y + CONFIG.BIRD_SIZE / 2,
-          vx: (Math.random() - 0.5) * 3,
-          vy: Math.random() * 2 + 1,
-          life: 1,
-          decay: 0.03 + Math.random() * 0.02,
-          size: 2 + Math.random() * 3,
-          color: `hsl(${45 + Math.random() * 20}, 100%, ${60 + Math.random() * 20}%)`,
-        });
+      const candidates = [];
+      for (let value = 1; value <= 9; value += 1) {
+        if (!used.has(value)) candidates.push(value);
       }
+      return candidates;
     }
 
-    function spawnScoreParticles() {
-      for (let i = 0; i < 12; i++) {
-        const angle = (Math.PI * 2 / 12) * i;
-        particles.push({
-          x: bird.x,
-          y: bird.y,
-          vx: Math.cos(angle) * (2 + Math.random() * 2),
-          vy: Math.sin(angle) * (2 + Math.random() * 2),
-          life: 1,
-          decay: 0.02 + Math.random() * 0.01,
-          size: 2 + Math.random() * 2,
-          color: `hsl(${120 + Math.random() * 40}, 100%, 70%)`,
-        });
-      }
-    }
+    function findBestCell(board) {
+      let bestIndex = -1;
+      let bestCandidates = null;
 
-    function spawnDeathParticles() {
-      for (let i = 0; i < 20; i++) {
-        particles.push({
-          x: bird.x,
-          y: bird.y,
-          vx: (Math.random() - 0.5) * 8,
-          vy: (Math.random() - 0.5) * 8,
-          life: 1,
-          decay: 0.01 + Math.random() * 0.015,
-          size: 3 + Math.random() * 5,
-          color: `hsl(${Math.random() * 40}, 100%, ${50 + Math.random() * 30}%)`,
-        });
-      }
-    }
-
-    function spawnPipe() {
-      const minTop = 80;
-      const maxTop = CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT - CONFIG.PIPE_GAP - 80;
-      const topHeight = minTop + Math.random() * (maxTop - minTop);
-      pipes.push({
-        x: CONFIG.WIDTH + CONFIG.PIPE_WIDTH,
-        topHeight: topHeight,
-        scored: false,
-      });
-    }
-
-    // ─── Collision Detection ─────────────────────────────────────────
-    function checkCollision() {
-      const birdLeft = bird.x - CONFIG.BIRD_SIZE / 2 + 3;
-      const birdRight = bird.x + CONFIG.BIRD_SIZE / 2 - 3;
-      const birdTop = bird.y - CONFIG.BIRD_SIZE / 2 + 3;
-      const birdBottom = bird.y + CONFIG.BIRD_SIZE / 2 - 3;
-
-      // Ground & ceiling
-      if (birdBottom >= CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT || birdTop <= 0) {
-        return true;
-      }
-
-      // Pipes
-      for (const pipe of pipes) {
-        const pipeLeft = pipe.x;
-        const pipeRight = pipe.x + CONFIG.PIPE_WIDTH;
-        const gapTop = pipe.topHeight;
-        const gapBottom = pipe.topHeight + CONFIG.PIPE_GAP;
-
-        if (birdRight > pipeLeft && birdLeft < pipeRight) {
-          if (birdTop < gapTop || birdBottom > gapBottom) {
-            return true;
-          }
+      for (let index = 0; index < CELL_COUNT; index += 1) {
+        if (board[index] !== 0) continue;
+        const candidates = getCandidates(board, index);
+        if (candidates.length === 0) return { index, candidates };
+        if (bestIndex === -1 || candidates.length < bestCandidates.length) {
+          bestIndex = index;
+          bestCandidates = candidates;
+          if (candidates.length === 1) break;
         }
       }
+
+      if (bestIndex === -1) return { index: -1, candidates: [] };
+      return { index: bestIndex, candidates: bestCandidates };
+    }
+
+    function solveBoard(board, randomize = false) {
+      const { index, candidates } = findBestCell(board);
+      if (index === -1) return true;
+      if (candidates.length === 0) return false;
+
+      const choices = randomize ? shuffle([...candidates]) : candidates;
+      for (const value of choices) {
+        board[index] = value;
+        if (solveBoard(board, randomize)) return true;
+      }
+      board[index] = 0;
       return false;
     }
 
-    // ─── Drawing Functions ───────────────────────────────────────────
+    function countSolutions(board, limit = 2) {
+      let solutionCount = 0;
 
-    function drawSky() {
-      const grad = ctx.createLinearGradient(0, 0, 0, CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT);
-      if (gameState === STATE.GAME_OVER) {
-        grad.addColorStop(0, '#1a0a1e');
-        grad.addColorStop(0.5, '#2d1b3d');
-        grad.addColorStop(1, '#4a2040');
+      function search() {
+        if (solutionCount >= limit) return;
+        const { index, candidates } = findBestCell(board);
+        if (index === -1) {
+          solutionCount += 1;
+          return;
+        }
+        if (candidates.length === 0) return;
+
+        for (const value of candidates) {
+          board[index] = value;
+          search();
+          if (solutionCount >= limit) break;
+        }
+        board[index] = 0;
+      }
+
+      search();
+      return solutionCount;
+    }
+
+    function generateSolvedBoard() {
+      const solved = Array(CELL_COUNT).fill(0);
+      solveBoard(solved, true);
+      return solved;
+    }
+
+    function generatePuzzle(difficultyKey) {
+      const targetRemovals = DIFFICULTIES[difficultyKey].removals;
+      let bestResult = null;
+
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        const solution = generateSolvedBoard();
+        const puzzle = [...solution];
+        const positions = shuffle(Array.from({ length: CELL_COUNT }, (_, i) => i));
+        let removed = 0;
+
+        for (const index of positions) {
+          if (removed >= targetRemovals) break;
+          const backup = puzzle[index];
+          puzzle[index] = 0;
+
+          const testBoard = [...puzzle];
+          const count = countSolutions(testBoard, 2);
+          if (count !== 1) {
+            puzzle[index] = backup;
+            continue;
+          }
+          removed += 1;
+        }
+
+        if (!bestResult || removed > bestResult.removed) {
+          bestResult = {
+            puzzle: [...puzzle],
+            solution: [...solution],
+            removed,
+          };
+        }
+
+        if (removed >= targetRemovals) break;
+      }
+
+      return bestResult;
+    }
+
+    function formatTime(totalSeconds) {
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+
+    function updateStatusBar() {
+      timerElement.textContent = formatTime(state.elapsedSeconds);
+      mistakesElement.textContent = `${state.mistakes}/${MAX_MISTAKES}`;
+    }
+
+    function setMessage(text, tone = "info") {
+      messageElement.textContent = text;
+      messageElement.dataset.tone = tone;
+    }
+
+    function startTimer() {
+      stopTimer();
+      state.timerId = window.setInterval(() => {
+        if (state.status !== "playing") return;
+        state.elapsedSeconds += 1;
+        updateStatusBar();
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (state.timerId) {
+        window.clearInterval(state.timerId);
+        state.timerId = null;
+      }
+    }
+
+    function createBoardUI() {
+      boardElement.innerHTML = "";
+      cellElements.length = 0;
+
+      for (let index = 0; index < CELL_COUNT; index += 1) {
+        const row = indexToRow(index);
+        const col = indexToCol(index);
+
+        const cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "cell";
+        cell.setAttribute("role", "gridcell");
+        cell.setAttribute("aria-label", `Row ${row + 1} Column ${col + 1}`);
+        cell.dataset.index = String(index);
+
+        if (row % 3 === 0) cell.classList.add("box-top");
+        if ((row + 1) % 3 === 0) cell.classList.add("box-bottom");
+        if (col % 3 === 0) cell.classList.add("box-left");
+        if ((col + 1) % 3 === 0) cell.classList.add("box-right");
+
+        cell.addEventListener("click", () => {
+          state.selectedIndex = index;
+          renderBoard();
+        });
+
+        cellElements.push(cell);
+        boardElement.appendChild(cell);
+      }
+    }
+
+    function isRelated(index, selectedIndex) {
+      if (selectedIndex === null || index === selectedIndex) return false;
+      const row = indexToRow(index);
+      const col = indexToCol(index);
+      const selectedRow = indexToRow(selectedIndex);
+      const selectedCol = indexToCol(selectedIndex);
+
+      const sameRow = row === selectedRow;
+      const sameCol = col === selectedCol;
+      const sameBox =
+        Math.floor(row / 3) === Math.floor(selectedRow / 3) &&
+        Math.floor(col / 3) === Math.floor(selectedCol / 3);
+
+      return sameRow || sameCol || sameBox;
+    }
+
+    function renderBoard() {
+      const selectedIndex = state.selectedIndex;
+      const selectedValue = selectedIndex === null ? 0 : state.board[selectedIndex];
+
+      for (let index = 0; index < CELL_COUNT; index += 1) {
+        const cell = cellElements[index];
+        const value = state.board[index];
+        const isFixed = state.fixedCells.has(index);
+
+        cell.textContent = value === 0 ? "" : String(value);
+        cell.classList.toggle("empty", value === 0);
+        cell.classList.toggle("fixed", isFixed);
+        cell.classList.toggle("selected", index === selectedIndex);
+        cell.classList.toggle("related", isRelated(index, selectedIndex));
+        cell.classList.toggle("same-value", selectedValue !== 0 && value === selectedValue && index !== selectedIndex);
+        cell.classList.toggle("hinted", state.hintedCells.has(index));
+        cell.classList.toggle("error", state.errorCells.has(index));
+      }
+
+      updateStatusBar();
+    }
+
+    function firstEditableIndex() {
+      for (let index = 0; index < CELL_COUNT; index += 1) {
+        if (!state.fixedCells.has(index)) return index;
+      }
+      return null;
+    }
+
+    function isSolved() {
+      return state.board.every((value, index) => value === state.solution[index]);
+    }
+
+    function loseGame() {
+      state.status = "lost";
+      stopTimer();
+      setMessage("Game over: no attempts left. Use Solve or start a new game.", "error");
+      renderBoard();
+    }
+
+    function winGame() {
+      state.status = "won";
+      stopTimer();
+      setMessage(`Solved in ${formatTime(state.elapsedSeconds)}. Great job!`, "success");
+      renderBoard();
+    }
+
+    function clearCell(index) {
+      if (index === null || state.status !== "playing" || state.fixedCells.has(index)) return;
+      state.board[index] = 0;
+      state.hintedCells.delete(index);
+      state.errorCells.delete(index);
+      renderBoard();
+    }
+
+    function placeValue(index, value) {
+      if (index === null || state.status !== "playing" || state.fixedCells.has(index)) return;
+      if (value < 1 || value > 9) return;
+
+      state.board[index] = value;
+      state.hintedCells.delete(index);
+
+      if (value !== state.solution[index]) {
+        state.mistakes += 1;
+        state.errorCells.add(index);
+        renderBoard();
+
+        const lockedValue = value;
+        window.setTimeout(() => {
+          if (state.board[index] === lockedValue) {
+            state.board[index] = 0;
+          }
+          state.errorCells.delete(index);
+          renderBoard();
+        }, 450);
+
+        if (state.mistakes >= MAX_MISTAKES) {
+          loseGame();
+        } else {
+          setMessage(`Incorrect value. Remaining attempts: ${MAX_MISTAKES - state.mistakes}.`, "error");
+        }
+        renderBoard();
+        return;
+      }
+
+      state.errorCells.delete(index);
+      if (isSolved()) {
+        winGame();
       } else {
-        grad.addColorStop(0, '#0f0c29');
-        grad.addColorStop(0.5, '#1a1a4e');
-        grad.addColorStop(1, '#24243e');
+        setMessage("Good move.", "success");
+        renderBoard();
       }
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT);
     }
 
-    function drawStars() {
-      stars.forEach(star => {
-        star.twinkle += star.speed;
-        const alpha = 0.3 + Math.sin(star.twinkle) * 0.3;
-        ctx.beginPath();
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-        ctx.fill();
-      });
+    function moveSelection(rowOffset, colOffset) {
+      if (state.selectedIndex === null) return;
+      const currentRow = indexToRow(state.selectedIndex);
+      const currentCol = indexToCol(state.selectedIndex);
+      const nextRow = (currentRow + rowOffset + BOARD_SIZE) % BOARD_SIZE;
+      const nextCol = (currentCol + colOffset + BOARD_SIZE) % BOARD_SIZE;
+      state.selectedIndex = toIndex(nextRow, nextCol);
+      renderBoard();
     }
 
-    function drawClouds() {
-      clouds.forEach(cloud => {
-        if (gameState === STATE.PLAYING) {
-          cloud.x -= cloud.speed;
-          if (cloud.x + cloud.width < 0) {
-            cloud.x = CONFIG.WIDTH + cloud.width;
-            cloud.y = 40 + Math.random() * 150;
+    function highlightWrongCells(indices) {
+      for (const index of indices) state.errorCells.add(index);
+      renderBoard();
+      window.setTimeout(() => {
+        for (const index of indices) state.errorCells.delete(index);
+        renderBoard();
+      }, 700);
+    }
+
+    function checkCurrentBoard() {
+      if (state.status !== "playing") return;
+
+      const wrongIndices = [];
+      for (let index = 0; index < CELL_COUNT; index += 1) {
+        const value = state.board[index];
+        if (value !== 0 && value !== state.solution[index]) wrongIndices.push(index);
+      }
+
+      if (wrongIndices.length > 0) {
+        highlightWrongCells(wrongIndices);
+        setMessage(`${wrongIndices.length} incorrect cell(s) highlighted.`, "error");
+        return;
+      }
+
+      if (state.board.includes(0)) {
+        setMessage("No incorrect values found so far.", "info");
+        return;
+      }
+
+      winGame();
+    }
+
+    function hintOneCell() {
+      if (state.status !== "playing") return;
+
+      let target = null;
+      if (
+        state.selectedIndex !== null &&
+        !state.fixedCells.has(state.selectedIndex) &&
+        state.board[state.selectedIndex] === 0
+      ) {
+        target = state.selectedIndex;
+      } else {
+        const empties = [];
+        for (let index = 0; index < CELL_COUNT; index += 1) {
+          if (!state.fixedCells.has(index) && state.board[index] === 0) {
+            empties.push(index);
           }
         }
-        ctx.fillStyle = `rgba(255, 255, 255, ${cloud.opacity})`;
-        ctx.beginPath();
-        ctx.ellipse(cloud.x, cloud.y, cloud.width / 2, cloud.height / 2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(cloud.x - cloud.width * 0.25, cloud.y + 5, cloud.width * 0.3, cloud.height * 0.4, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(cloud.x + cloud.width * 0.25, cloud.y + 3, cloud.width * 0.35, cloud.height * 0.45, 0, 0, Math.PI * 2);
-        ctx.fill();
-      });
-    }
-
-    function drawGround() {
-      if (gameState === STATE.PLAYING) {
-        groundOffset = (groundOffset + CONFIG.PIPE_SPEED) % 40;
-      }
-
-      const gy = CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT;
-
-      // Ground base
-      const groundGrad = ctx.createLinearGradient(0, gy, 0, CONFIG.HEIGHT);
-      groundGrad.addColorStop(0, '#4a7c59');
-      groundGrad.addColorStop(0.08, '#3d6b4a');
-      groundGrad.addColorStop(0.15, '#8B6914');
-      groundGrad.addColorStop(0.4, '#7a5c10');
-      groundGrad.addColorStop(1, '#5a4210');
-      ctx.fillStyle = groundGrad;
-      ctx.fillRect(0, gy, CONFIG.WIDTH, CONFIG.GROUND_HEIGHT);
-
-      // Grass blades
-      ctx.strokeStyle = '#5a9e6a';
-      ctx.lineWidth = 2;
-      for (let x = -groundOffset; x < CONFIG.WIDTH + 40; x += 8) {
-        ctx.beginPath();
-        ctx.moveTo(x, gy);
-        ctx.quadraticCurveTo(x + 2, gy - 8, x + 4, gy - 12);
-        ctx.stroke();
-      }
-
-      // Ground line
-      ctx.strokeStyle = '#2d5a3a';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(0, gy);
-      ctx.lineTo(CONFIG.WIDTH, gy);
-      ctx.stroke();
-
-      // Dirt texture dots
-      ctx.fillStyle = 'rgba(0,0,0,0.1)';
-      for (let x = -groundOffset; x < CONFIG.WIDTH + 40; x += 20) {
-        for (let row = 0; row < 3; row++) {
-          ctx.beginPath();
-          ctx.arc(x + (row % 2) * 10, gy + 20 + row * 18, 2, 0, Math.PI * 2);
-          ctx.fill();
+        if (empties.length === 0) {
+          setMessage("No empty cells left for a hint.", "info");
+          return;
         }
+        target = empties[Math.floor(Math.random() * empties.length)];
+      }
+
+      state.board[target] = state.solution[target];
+      state.hintedCells.add(target);
+      state.errorCells.delete(target);
+      state.selectedIndex = target;
+
+      if (isSolved()) {
+        winGame();
+      } else {
+        setMessage("Hint applied to one cell.", "info");
+        renderBoard();
       }
     }
 
-    function drawPipe(pipe) {
-      const topH = pipe.topHeight;
-      const bottomY = topH + CONFIG.PIPE_GAP;
-      const bottomH = CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT - bottomY;
-      const pw = CONFIG.PIPE_WIDTH;
-
-      // Pipe body gradient
-      const pipeGrad = ctx.createLinearGradient(pipe.x, 0, pipe.x + pw, 0);
-      pipeGrad.addColorStop(0, '#2ecc71');
-      pipeGrad.addColorStop(0.3, '#58d68d');
-      pipeGrad.addColorStop(0.5, '#7dcea0');
-      pipeGrad.addColorStop(0.7, '#58d68d');
-      pipeGrad.addColorStop(1, '#27ae60');
-
-      // Top pipe body
-      ctx.fillStyle = pipeGrad;
-      ctx.fillRect(pipe.x, 0, pw, topH);
-
-      // Top pipe cap
-      const capWidth = pw + 12;
-      const capHeight = 26;
-      const capX = pipe.x - 6;
-
-      const capGrad = ctx.createLinearGradient(capX, 0, capX + capWidth, 0);
-      capGrad.addColorStop(0, '#27ae60');
-      capGrad.addColorStop(0.3, '#58d68d');
-      capGrad.addColorStop(0.5, '#82e0aa');
-      capGrad.addColorStop(0.7, '#58d68d');
-      capGrad.addColorStop(1, '#1e8449');
-
-      ctx.fillStyle = capGrad;
-      roundRect(capX, topH - capHeight, capWidth, capHeight, 4);
-      ctx.fill();
-
-      // Top pipe cap border
-      ctx.strokeStyle = '#1e8449';
-      ctx.lineWidth = 2;
-      roundRect(capX, topH - capHeight, capWidth, capHeight, 4);
-      ctx.stroke();
-
-      // Pipe highlight (shiny streak)
-      ctx.fillStyle = 'rgba(255,255,255,0.12)';
-      ctx.fillRect(pipe.x + 8, 0, 6, topH - capHeight);
-
-      // Bottom pipe body
-      ctx.fillStyle = pipeGrad;
-      ctx.fillRect(pipe.x, bottomY, pw, bottomH);
-
-      // Bottom pipe cap
-      ctx.fillStyle = capGrad;
-      roundRect(capX, bottomY, capWidth, capHeight, 4);
-      ctx.fill();
-
-      ctx.strokeStyle = '#1e8449';
-      ctx.lineWidth = 2;
-      roundRect(capX, bottomY, capWidth, capHeight, 4);
-      ctx.stroke();
-
-      // Bottom pipe highlight
-      ctx.fillStyle = 'rgba(255,255,255,0.12)';
-      ctx.fillRect(pipe.x + 8, bottomY + capHeight, 6, bottomH - capHeight);
-
-      // Pipe shadow on ground
-      ctx.fillStyle = 'rgba(0,0,0,0.15)';
-      ctx.fillRect(pipe.x - 2, CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT, pw + 4, 10);
+    function solveCurrentPuzzle() {
+      if (state.solution.length === 0) return;
+      state.board = [...state.solution];
+      state.status = "solved";
+      stopTimer();
+      state.selectedIndex = null;
+      state.errorCells.clear();
+      setMessage("Solution revealed. Start a new game for another puzzle.", "info");
+      renderBoard();
     }
 
-    function roundRect(x, y, w, h, r) {
-      ctx.beginPath();
-      ctx.moveTo(x + r, y);
-      ctx.lineTo(x + w - r, y);
-      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-      ctx.lineTo(x + w, y + h - r);
-      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-      ctx.lineTo(x + r, y + h);
-      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-      ctx.lineTo(x, y + r);
-      ctx.quadraticCurveTo(x, y, x + r, y);
-      ctx.closePath();
+    function resetCurrentPuzzle() {
+      if (state.initialPuzzle.length === 0) return;
+      state.board = [...state.initialPuzzle];
+      state.hintedCells.clear();
+      state.errorCells.clear();
+      state.mistakes = 0;
+      state.elapsedSeconds = 0;
+      state.status = "playing";
+      state.selectedIndex = firstEditableIndex();
+      setMessage("Board reset.", "info");
+      startTimer();
+      renderBoard();
     }
 
-    function drawBird() {
-      ctx.save();
-      ctx.translate(bird.x, bird.y);
-      ctx.rotate(bird.rotation);
+    function startNewGame() {
+      stopTimer();
+      setMessage("Generating puzzle...", "info");
 
-      const s = CONFIG.BIRD_SIZE;
+      window.setTimeout(() => {
+        const difficultyKey = difficultySelect.value;
+        const generated = generatePuzzle(difficultyKey);
 
-      // Bird body (ellipse)
-      const bodyGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, s);
-      bodyGrad.addColorStop(0, '#ffe066');
-      bodyGrad.addColorStop(0.6, '#ffc933');
-      bodyGrad.addColorStop(1, '#e6a800');
-      ctx.fillStyle = bodyGrad;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, s, s * 0.8, 0, 0, Math.PI * 2);
-      ctx.fill();
+        state.initialPuzzle = [...generated.puzzle];
+        state.board = [...generated.puzzle];
+        state.solution = [...generated.solution];
+        state.fixedCells = new Set();
+        state.hintedCells.clear();
+        state.errorCells.clear();
+        state.mistakes = 0;
+        state.elapsedSeconds = 0;
+        state.status = "playing";
 
-      // Body outline
-      ctx.strokeStyle = '#cc8800';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, s, s * 0.8, 0, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Belly highlight
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
-      ctx.beginPath();
-      ctx.ellipse(-2, -3, s * 0.5, s * 0.35, -0.3, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Wing
-      bird.wingPhase += gameState === STATE.PLAYING ? 0.25 : 0.08;
-      const wingY = Math.sin(bird.wingPhase) * 5;
-
-      ctx.fillStyle = '#e6a800';
-      ctx.beginPath();
-      ctx.ellipse(-5, wingY + 2, 10, 6, -0.3, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#cc8800';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.ellipse(-5, wingY + 2, 10, 6, -0.3, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Eye (white)
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(10, -5, 7, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(10, -5, 7, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Pupil
-      ctx.fillStyle = '#1a1a1a';
-      ctx.beginPath();
-      ctx.arc(12, -5, 3.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Eye glint
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(13.5, -6.5, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Beak
-      ctx.fillStyle = '#e74c3c';
-      ctx.beginPath();
-      ctx.moveTo(16, 0);
-      ctx.lineTo(26, 2);
-      ctx.lineTo(16, 6);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = '#c0392b';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(16, 0);
-      ctx.lineTo(26, 2);
-      ctx.lineTo(16, 6);
-      ctx.closePath();
-      ctx.stroke();
-
-      // Tail feathers
-      ctx.fillStyle = '#d4a017';
-      ctx.beginPath();
-      ctx.moveTo(-16, -2);
-      ctx.lineTo(-26, -8);
-      ctx.lineTo(-22, 0);
-      ctx.lineTo(-26, 8);
-      ctx.lineTo(-16, 4);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.restore();
-    }
-
-    function drawBirdTrail() {
-      for (let i = 0; i < bird.trail.length; i++) {
-        const t = bird.trail[i];
-        const alpha = t.life * 0.3;
-        ctx.fillStyle = `rgba(255, 200, 50, ${alpha})`;
-        ctx.beginPath();
-        ctx.arc(t.x, t.y, t.life * 5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    function drawParticles() {
-      particles.forEach(p => {
-        ctx.globalAlpha = p.life;
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      ctx.globalAlpha = 1;
-    }
-
-    function drawScore() {
-      if (gameState !== STATE.PLAYING) return;
-
-      // Score shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.font = 'bold 52px "Segoe UI", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(score, CONFIG.WIDTH / 2 + 3, 73);
-
-      // Score text
-      ctx.fillStyle = '#fff';
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 4;
-      ctx.font = 'bold 52px "Segoe UI", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.strokeText(score, CONFIG.WIDTH / 2, 70);
-      ctx.fillText(score, CONFIG.WIDTH / 2, 70);
-    }
-
-    function drawMenuScreen() {
-      // Title
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.font = 'bold 48px "Segoe UI", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Arcade Bird', CONFIG.WIDTH / 2 + 3, 153);
-
-      ctx.fillStyle = '#ffc933';
-      ctx.strokeStyle = '#cc8800';
-      ctx.lineWidth = 3;
-      ctx.font = 'bold 48px "Segoe UI", sans-serif';
-      ctx.strokeText('Arcade Bird', CONFIG.WIDTH / 2, 150);
-      ctx.fillText('Arcade Bird', CONFIG.WIDTH / 2, 150);
-
-      // Subtitle
-      const pulse = 0.5 + Math.sin(frameCount * 0.05) * 0.3;
-      ctx.fillStyle = `rgba(255, 255, 255, ${pulse})`;
-      ctx.font = '20px "Segoe UI", sans-serif';
-      ctx.fillText('Tap or Press Space to Start', CONFIG.WIDTH / 2, 340);
-
-      // High score
-      if (highScore > 0) {
-        ctx.fillStyle = 'rgba(255, 200, 50, 0.8)';
-        ctx.font = '18px "Segoe UI", sans-serif';
-        ctx.fillText(`Best: ${highScore}`, CONFIG.WIDTH / 2, 380);
-      }
-
-      // Instructions
-      ctx.fillStyle = 'rgba(255,255,255,0.4)';
-      ctx.font = '14px "Segoe UI", sans-serif';
-      ctx.fillText('Space / Click / Tap to Flap', CONFIG.WIDTH / 2, CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT - 30);
-
-      // Animated bird on menu
-      const menuBirdY = 230 + Math.sin(frameCount * 0.04) * 15;
-      ctx.save();
-      ctx.translate(CONFIG.WIDTH / 2, menuBirdY);
-      ctx.rotate(Math.sin(frameCount * 0.04) * 0.15);
-
-      const s = 24;
-      const bodyGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, s);
-      bodyGrad.addColorStop(0, '#ffe066');
-      bodyGrad.addColorStop(0.6, '#ffc933');
-      bodyGrad.addColorStop(1, '#e6a800');
-      ctx.fillStyle = bodyGrad;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, s, s * 0.8, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#cc8800';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      // Wing
-      const wingY = Math.sin(frameCount * 0.15) * 6;
-      ctx.fillStyle = '#e6a800';
-      ctx.beginPath();
-      ctx.ellipse(-6, wingY + 2, 12, 7, -0.3, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Eye
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(12, -6, 8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.fillStyle = '#1a1a1a';
-      ctx.beginPath();
-      ctx.arc(14, -6, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(15.5, -7.5, 1.8, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Beak
-      ctx.fillStyle = '#e74c3c';
-      ctx.beginPath();
-      ctx.moveTo(19, 0);
-      ctx.lineTo(31, 2);
-      ctx.lineTo(19, 7);
-      ctx.closePath();
-      ctx.fill();
-
-      // Tail
-      ctx.fillStyle = '#d4a017';
-      ctx.beginPath();
-      ctx.moveTo(-19, -3);
-      ctx.lineTo(-31, -10);
-      ctx.lineTo(-26, 0);
-      ctx.lineTo(-31, 10);
-      ctx.lineTo(-19, 5);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.restore();
-    }
-
-    function drawGameOverScreen() {
-      // Overlay
-      const overlayAlpha = Math.min(frameCount * 0.02, 0.6);
-      ctx.fillStyle = `rgba(0, 0, 0, ${overlayAlpha})`;
-      ctx.fillRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
-
-      if (frameCount < 15) return;
-
-      // Game Over panel
-      const panelW = 280;
-      const panelH = 220;
-      const panelX = (CONFIG.WIDTH - panelW) / 2;
-      const panelY = (CONFIG.HEIGHT - panelH) / 2 - 30;
-
-      // Panel background
-      ctx.fillStyle = 'rgba(30, 30, 50, 0.95)';
-      roundRect(panelX, panelY, panelW, panelH, 16);
-      ctx.fill();
-
-      // Panel border
-      ctx.strokeStyle = 'rgba(255, 200, 50, 0.4)';
-      ctx.lineWidth = 2;
-      roundRect(panelX, panelY, panelW, panelH, 16);
-      ctx.stroke();
-
-      // Game Over title
-      ctx.fillStyle = '#e74c3c';
-      ctx.font = 'bold 36px "Segoe UI", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Game Over', CONFIG.WIDTH / 2, panelY + 50);
-
-      // Score
-      ctx.fillStyle = '#fff';
-      ctx.font = '22px "Segoe UI", sans-serif';
-      ctx.fillText(`Score: ${score}`, CONFIG.WIDTH / 2, panelY + 100);
-
-      // High score
-      ctx.fillStyle = '#ffc933';
-      ctx.font = '22px "Segoe UI", sans-serif';
-      ctx.fillText(`Best: ${highScore}`, CONFIG.WIDTH / 2, panelY + 135);
-
-      // New best indicator
-      if (score === highScore && score > 0) {
-        ctx.fillStyle = '#2ecc71';
-        ctx.font = 'bold 16px "Segoe UI", sans-serif';
-        ctx.fillText('NEW BEST!', CONFIG.WIDTH / 2, panelY + 165);
-      }
-
-      // Restart hint
-      if (frameCount > 30) {
-        const pulse = 0.4 + Math.sin(frameCount * 0.06) * 0.3;
-        ctx.fillStyle = `rgba(255, 255, 255, ${pulse})`;
-        ctx.font = '16px "Segoe UI", sans-serif';
-        ctx.fillText('Tap to Restart', CONFIG.WIDTH / 2, panelY + panelH + 40);
-      }
-    }
-
-    // ─── Update Functions ────────────────────────────────────────────
-    function updateBird() {
-      bird.velocity += CONFIG.GRAVITY;
-      bird.y += bird.velocity;
-
-      // Rotation based on velocity
-      const targetRotation = Math.max(-0.5, Math.min(bird.velocity * 0.06, 1.2));
-      bird.rotation += (targetRotation - bird.rotation) * 0.15;
-
-      // Trail
-      if (frameCount % 2 === 0) {
-        bird.trail.push({ x: bird.x - 10, y: bird.y, life: 1 });
-      }
-      bird.trail = bird.trail.filter(t => {
-        t.life -= 0.05;
-        t.x -= CONFIG.PIPE_SPEED * 0.5;
-        return t.life > 0;
-      });
-    }
-
-    function updatePipes() {
-      // Spawn pipes
-      if (frameCount % CONFIG.PIPE_SPAWN_INTERVAL === 0 && frameCount > 0) {
-        spawnPipe();
-      }
-
-      // Move & score
-      pipes.forEach(pipe => {
-        pipe.x -= CONFIG.PIPE_SPEED;
-
-        if (!pipe.scored && pipe.x + CONFIG.PIPE_WIDTH < bird.x) {
-          pipe.scored = true;
-          score++;
-          spawnScoreParticles();
+        for (let index = 0; index < CELL_COUNT; index += 1) {
+          if (state.initialPuzzle[index] !== 0) state.fixedCells.add(index);
         }
-      });
 
-      // Remove off-screen pipes
-      pipes = pipes.filter(p => p.x + CONFIG.PIPE_WIDTH > -10);
+        state.selectedIndex = firstEditableIndex();
+        startTimer();
+        setMessage(
+          `${DIFFICULTIES[difficultyKey].label} puzzle ready. Fill all cells without exceeding 3 mistakes.`,
+          "info"
+        );
+        renderBoard();
+      }, 30);
     }
 
-    function updateParticles() {
-      particles.forEach(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += 0.05;
-        p.life -= p.decay;
-      });
-      particles = particles.filter(p => p.life > 0);
+    function handleKeyboardInput(event) {
+      if (state.selectedIndex === null) return;
+
+      if (event.key >= "1" && event.key <= "9") {
+        event.preventDefault();
+        placeValue(state.selectedIndex, Number(event.key));
+        return;
+      }
+
+      switch (event.key) {
+        case "Backspace":
+        case "Delete":
+        case "0":
+          event.preventDefault();
+          clearCell(state.selectedIndex);
+          break;
+        case "ArrowUp":
+          event.preventDefault();
+          moveSelection(-1, 0);
+          break;
+        case "ArrowDown":
+          event.preventDefault();
+          moveSelection(1, 0);
+          break;
+        case "ArrowLeft":
+          event.preventDefault();
+          moveSelection(0, -1);
+          break;
+        case "ArrowRight":
+          event.preventDefault();
+          moveSelection(0, 1);
+          break;
+        default:
+          break;
+      }
     }
 
-    // ─── Main Game Loop ──────────────────────────────────────────────
-    function gameLoop() {
-      frameCount++;
+    function handlePadInput(event) {
+      const target = event.target.closest("button[data-value]");
+      if (!target) return;
+      if (state.selectedIndex === null) return;
 
-      // Screen shake offset
-      let shakeX = 0, shakeY = 0;
-      if (screenShake > 0) {
-        shakeX = (Math.random() - 0.5) * screenShake;
-        shakeY = (Math.random() - 0.5) * screenShake;
-        screenShake *= 0.85;
-        if (screenShake < 0.5) screenShake = 0;
+      const value = Number(target.dataset.value);
+      if (value === 0) {
+        clearCell(state.selectedIndex);
+      } else {
+        placeValue(state.selectedIndex, value);
       }
-
-      ctx.save();
-      ctx.translate(shakeX, shakeY);
-
-      // Draw background
-      drawSky();
-      drawStars();
-      drawClouds();
-
-      if (gameState === STATE.PLAYING) {
-        updateBird();
-        updatePipes();
-        updateParticles();
-
-        // Check collisions
-        if (checkCollision()) {
-          gameState = STATE.GAME_OVER;
-          if (score > highScore) {
-            highScore = score;
-            localStorage.setItem('arcadeBirdHighScore', highScore);
-          }
-          spawnDeathParticles();
-          screenShake = 12;
-          frameCount = 0;
-        }
-      } else if (gameState === STATE.MENU) {
-        // Gentle float for menu bird
-        updateParticles();
-      } else if (gameState === STATE.GAME_OVER) {
-        // Bird falls after death
-        if (bird.y < CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT - CONFIG.BIRD_SIZE) {
-          bird.velocity += CONFIG.GRAVITY;
-          bird.y += bird.velocity;
-          bird.rotation += 0.08;
-        }
-        updateParticles();
-      }
-
-      // Draw game elements
-      pipes.forEach(drawPipe);
-      drawBirdTrail();
-      drawBird();
-      drawParticles();
-      drawGround();
-      drawScore();
-
-      // Draw state screens
-      if (gameState === STATE.MENU) {
-        drawMenuScreen();
-      } else if (gameState === STATE.GAME_OVER) {
-        drawGameOverScreen();
-      }
-
-      ctx.restore();
-
-      requestAnimationFrame(gameLoop);
     }
 
-    // ─── Input Handling ──────────────────────────────────────────────
-    document.addEventListener('keydown', (e) => {
-      if (e.code === 'Space' || e.code === 'ArrowUp') {
-        e.preventDefault();
-        jump();
-      }
-    });
+    document.getElementById("newGame").addEventListener("click", startNewGame);
+    document.getElementById("resetBoard").addEventListener("click", resetCurrentPuzzle);
+    document.getElementById("checkBoard").addEventListener("click", checkCurrentBoard);
+    document.getElementById("hintCell").addEventListener("click", hintOneCell);
+    document.getElementById("solveBoard").addEventListener("click", solveCurrentPuzzle);
+    numberPad.addEventListener("click", handlePadInput);
+    document.addEventListener("keydown", handleKeyboardInput);
 
-    canvas.addEventListener('click', (e) => {
-      e.preventDefault();
-      jump();
-    });
-
-    canvas.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      jump();
-    }, { passive: false });
-
-    // ─── Start ───────────────────────────────────────────────────────
-    gameLoop();
+    createBoardUI();
+    startNewGame();
   </script>
 </body>
 </html>

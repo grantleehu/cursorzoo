@@ -1,2 +1,13 @@
-readme
-start
+# Sudoku Web Game
+
+Simple single-page Sudoku game built with plain HTML, CSS and JavaScript.
+
+## Features
+- Random puzzle generation with unique-solution checks
+- Three difficulties: easy, medium, hard
+- Keyboard input (1-9, Backspace/Delete, arrow navigation)
+- Number pad for mouse/touch play
+- Mistake limit, timer, hint, check, reset, and solve actions
+
+## Run
+Open `index.html` in any modern browser.
