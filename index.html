@@ -3,846 +3,924 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Arcade Bird</title>
+  <title>Sudoku Web Game</title>
   <style>
     * {
-      margin: 0;
-      padding: 0;
       box-sizing: border-box;
     }
+
     body {
-      background: #1a1a2e;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      margin: 0;
       min-height: 100vh;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      overflow: hidden;
+      display: grid;
+      place-items: center;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background:
+        radial-gradient(circle at 20% 20%, #1d4ed8 0%, transparent 42%),
+        radial-gradient(circle at 85% 12%, #4f46e5 0%, transparent 40%),
+        linear-gradient(165deg, #0f172a 0%, #1f2937 100%);
+      color: #e5e7eb;
+      padding: 20px;
     }
-    #gameContainer {
-      position: relative;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow:
-        0 0 40px rgba(255, 200, 50, 0.15),
-        0 20px 60px rgba(0, 0, 0, 0.5);
+
+    .app {
+      width: min(700px, 96vw);
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 16px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.38);
+      backdrop-filter: blur(8px);
+      padding: 18px 18px 22px;
     }
-    canvas {
+
+    h1 {
+      margin: 0;
+      text-align: center;
+      font-size: clamp(1.35rem, 2.6vw, 2rem);
+      letter-spacing: 0.5px;
+    }
+
+    .subtitle {
+      margin: 8px 0 14px;
+      text-align: center;
+      color: #cbd5e1;
+      font-size: 0.95rem;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    button,
+    select {
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      background: rgba(30, 41, 59, 0.92);
+      color: #e2e8f0;
+      cursor: pointer;
+      transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+    }
+
+    button:hover,
+    select:hover {
+      border-color: #93c5fd;
+      background: rgba(30, 64, 175, 0.9);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button:disabled,
+    select:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(70px, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .stat {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .stat-label {
       display: block;
+      color: #cbd5e1;
+      font-size: 0.78rem;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .status {
+      margin: 10px 0 14px;
+      min-height: 24px;
+      text-align: center;
+      color: #bfdbfe;
+      font-weight: 600;
+    }
+
+    .status.error {
+      color: #fecaca;
+    }
+
+    .status.success {
+      color: #bbf7d0;
+    }
+
+    .board {
+      width: min(560px, 92vw);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(9, minmax(0, 1fr));
+      aspect-ratio: 1 / 1;
+      border: 3px solid #334155;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #0f172a;
+    }
+
+    .board.solved {
+      border-color: #16a34a;
+      box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.35);
+    }
+
+    .cell {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border: 1px solid #64748b;
+      font-size: clamp(0.95rem, 2.2vw, 1.35rem);
+      font-weight: 700;
+      text-align: center;
+      color: #f8fafc;
+      background: #111827;
+      outline: none;
+      caret-color: transparent;
+      transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .cell.thick-right {
+      border-right-width: 3px;
+      border-right-color: #334155;
+    }
+
+    .cell.thick-bottom {
+      border-bottom-width: 3px;
+      border-bottom-color: #334155;
+    }
+
+    .cell.clue {
+      color: #93c5fd;
+      background: #1e293b;
+    }
+
+    .cell.peer {
+      background: #1f2937;
+    }
+
+    .cell.same-value {
+      background: #243f67;
+    }
+
+    .cell.selected {
+      background: #1d4ed8;
+      color: #ffffff;
+      box-shadow: inset 0 0 0 2px #bfdbfe;
+    }
+
+    .cell.incorrect {
+      background: #7f1d1d;
+      color: #fee2e2;
+    }
+
+    .cell.hinted {
+      color: #86efac;
+    }
+
+    .numpad {
+      width: min(560px, 92vw);
+      margin: 14px auto 0;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .numpad button {
+      padding: 10px 0;
+      font-size: 1rem;
+    }
+
+    .footer-note {
+      margin: 12px 0 0;
+      text-align: center;
+      color: #94a3b8;
+      font-size: 0.82rem;
+    }
+
+    @media (max-width: 520px) {
+      .app {
+        padding: 14px 12px 16px;
+      }
+
+      .controls {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .numpad {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
     }
   </style>
 </head>
 <body>
-  <div id="gameContainer">
-    <canvas id="gameCanvas"></canvas>
-  </div>
+  <main class="app">
+    <h1>Sudoku Web Game</h1>
+    <p class="subtitle">Fill each row, column, and 3x3 box with digits 1-9.</p>
+
+    <section class="controls">
+      <select id="difficultySelect" aria-label="Choose difficulty">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+      <button id="newGameBtn" type="button">New Game</button>
+      <button id="resetBtn" type="button">Reset</button>
+      <button id="checkBtn" type="button">Check</button>
+      <button id="hintBtn" type="button">Hint</button>
+      <button id="solveBtn" type="button">Solve</button>
+    </section>
+
+    <section class="stats">
+      <div class="stat">
+        <span class="stat-label">Time</span>
+        <span class="stat-value" id="timerValue">00:00</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Mistakes</span>
+        <span class="stat-value" id="mistakeValue">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Best</span>
+        <span class="stat-value" id="bestValue">--:--</span>
+      </div>
+    </section>
+
+    <p class="status" id="statusMessage" role="status" aria-live="polite">Generating puzzle...</p>
+
+    <div class="board" id="board" aria-label="Sudoku board"></div>
+    <section class="numpad" id="numpad" aria-label="Number pad"></section>
+
+    <p class="footer-note">Tip: You can also use keyboard numbers and arrow keys.</p>
+  </main>
 
   <script>
-    // ─── Configuration ───────────────────────────────────────────────
-    const CONFIG = {
-      WIDTH: 400,
-      HEIGHT: 600,
-      GRAVITY: 0.45,
-      JUMP_FORCE: -7.5,
-      PIPE_SPEED: 2.5,
-      PIPE_WIDTH: 60,
-      PIPE_GAP: 150,
-      PIPE_SPAWN_INTERVAL: 100, // frames
-      BIRD_SIZE: 20,
-      BIRD_X: 80,
-      GROUND_HEIGHT: 80,
+    const SIZE = 9;
+    const BOX_SIZE = 3;
+    const DIGITS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    const REMOVALS_BY_DIFFICULTY = {
+      easy: 38,
+      medium: 46,
+      hard: 52,
     };
+    const BEST_TIME_STORAGE_KEY = "sudokuBestTimeByDifficulty";
 
-    // ─── Canvas Setup ────────────────────────────────────────────────
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = CONFIG.WIDTH;
-    canvas.height = CONFIG.HEIGHT;
+    const boardEl = document.getElementById("board");
+    const numpadEl = document.getElementById("numpad");
+    const timerValueEl = document.getElementById("timerValue");
+    const mistakeValueEl = document.getElementById("mistakeValue");
+    const bestValueEl = document.getElementById("bestValue");
+    const statusMessageEl = document.getElementById("statusMessage");
+    const difficultySelectEl = document.getElementById("difficultySelect");
 
-    // ─── Game State ──────────────────────────────────────────────────
-    const STATE = {
-      MENU: 'menu',
-      PLAYING: 'playing',
-      GAME_OVER: 'gameOver',
-    };
+    const newGameBtn = document.getElementById("newGameBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const checkBtn = document.getElementById("checkBtn");
+    const hintBtn = document.getElementById("hintBtn");
+    const solveBtn = document.getElementById("solveBtn");
 
-    let gameState = STATE.MENU;
-    let score = 0;
-    let highScore = parseInt(localStorage.getItem('arcadeBirdHighScore')) || 0;
-    let frameCount = 0;
-    let screenShake = 0;
+    let solutionBoard = [];
+    let initialBoard = [];
+    let currentBoard = [];
+    let cellElements = [];
+    let selectedCell = null;
+    let hintedCells = new Set();
 
-    // ─── Bird ────────────────────────────────────────────────────────
-    const bird = {
-      x: CONFIG.BIRD_X,
-      y: CONFIG.HEIGHT / 2,
-      velocity: 0,
-      rotation: 0,
-      wingPhase: 0,
-      trail: [],
-    };
+    let mistakes = 0;
+    let gameFinished = false;
+    let elapsedSeconds = 0;
+    let timerId = null;
 
-    // ─── Pipes ───────────────────────────────────────────────────────
-    let pipes = [];
+    let bestTimes = {};
 
-    // ─── Particles ───────────────────────────────────────────────────
-    let particles = [];
-
-    // ─── Stars (background) ──────────────────────────────────────────
-    const stars = [];
-    for (let i = 0; i < 50; i++) {
-      stars.push({
-        x: Math.random() * CONFIG.WIDTH,
-        y: Math.random() * (CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT),
-        size: Math.random() * 2 + 0.5,
-        twinkle: Math.random() * Math.PI * 2,
-        speed: Math.random() * 0.02 + 0.01,
-      });
+    function createEmptyBoard() {
+      return Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
     }
 
-    // ─── Clouds ──────────────────────────────────────────────────────
-    const clouds = [];
-    for (let i = 0; i < 5; i++) {
-      clouds.push({
-        x: Math.random() * CONFIG.WIDTH,
-        y: 40 + Math.random() * 150,
-        width: 60 + Math.random() * 80,
-        height: 20 + Math.random() * 20,
-        speed: 0.2 + Math.random() * 0.3,
-        opacity: 0.05 + Math.random() * 0.08,
-      });
+    function cloneBoard(board) {
+      return board.map((row) => row.slice());
     }
 
-    // ─── Ground tiles ────────────────────────────────────────────────
-    let groundOffset = 0;
-
-    // ─── Helper Functions ────────────────────────────────────────────
-    function resetGame() {
-      bird.y = CONFIG.HEIGHT / 2;
-      bird.velocity = 0;
-      bird.rotation = 0;
-      bird.trail = [];
-      pipes = [];
-      particles = [];
-      score = 0;
-      frameCount = 0;
-      screenShake = 0;
+    function shuffle(values) {
+      const arr = values.slice();
+      for (let i = arr.length - 1; i > 0; i -= 1) {
+        const randomIndex = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[randomIndex]] = [arr[randomIndex], arr[i]];
+      }
+      return arr;
     }
 
-    function jump() {
-      if (gameState === STATE.MENU) {
-        resetGame();
-        gameState = STATE.PLAYING;
-        bird.velocity = CONFIG.JUMP_FORCE;
-        spawnJumpParticles();
-      } else if (gameState === STATE.PLAYING) {
-        bird.velocity = CONFIG.JUMP_FORCE;
-        spawnJumpParticles();
-      } else if (gameState === STATE.GAME_OVER) {
-        if (frameCount > 30) {
-          resetGame();
-          gameState = STATE.MENU;
+    function getCandidates(board, row, col) {
+      const used = new Set();
+      for (let i = 0; i < SIZE; i += 1) {
+        used.add(board[row][i]);
+        used.add(board[i][col]);
+      }
+      const boxRowStart = Math.floor(row / BOX_SIZE) * BOX_SIZE;
+      const boxColStart = Math.floor(col / BOX_SIZE) * BOX_SIZE;
+      for (let r = boxRowStart; r < boxRowStart + BOX_SIZE; r += 1) {
+        for (let c = boxColStart; c < boxColStart + BOX_SIZE; c += 1) {
+          used.add(board[r][c]);
         }
       }
+      return DIGITS.filter((digit) => !used.has(digit));
     }
 
-    function spawnJumpParticles() {
-      for (let i = 0; i < 6; i++) {
-        particles.push({
-          x: bird.x,
-          y: bird.y + CONFIG.BIRD_SIZE / 2,
-          vx: (Math.random() - 0.5) * 3,
-          vy: Math.random() * 2 + 1,
-          life: 1,
-          decay: 0.03 + Math.random() * 0.02,
-          size: 2 + Math.random() * 3,
-          color: `hsl(${45 + Math.random() * 20}, 100%, ${60 + Math.random() * 20}%)`,
-        });
-      }
-    }
-
-    function spawnScoreParticles() {
-      for (let i = 0; i < 12; i++) {
-        const angle = (Math.PI * 2 / 12) * i;
-        particles.push({
-          x: bird.x,
-          y: bird.y,
-          vx: Math.cos(angle) * (2 + Math.random() * 2),
-          vy: Math.sin(angle) * (2 + Math.random() * 2),
-          life: 1,
-          decay: 0.02 + Math.random() * 0.01,
-          size: 2 + Math.random() * 2,
-          color: `hsl(${120 + Math.random() * 40}, 100%, 70%)`,
-        });
-      }
-    }
-
-    function spawnDeathParticles() {
-      for (let i = 0; i < 20; i++) {
-        particles.push({
-          x: bird.x,
-          y: bird.y,
-          vx: (Math.random() - 0.5) * 8,
-          vy: (Math.random() - 0.5) * 8,
-          life: 1,
-          decay: 0.01 + Math.random() * 0.015,
-          size: 3 + Math.random() * 5,
-          color: `hsl(${Math.random() * 40}, 100%, ${50 + Math.random() * 30}%)`,
-        });
-      }
-    }
-
-    function spawnPipe() {
-      const minTop = 80;
-      const maxTop = CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT - CONFIG.PIPE_GAP - 80;
-      const topHeight = minTop + Math.random() * (maxTop - minTop);
-      pipes.push({
-        x: CONFIG.WIDTH + CONFIG.PIPE_WIDTH,
-        topHeight: topHeight,
-        scored: false,
-      });
-    }
-
-    // ─── Collision Detection ─────────────────────────────────────────
-    function checkCollision() {
-      const birdLeft = bird.x - CONFIG.BIRD_SIZE / 2 + 3;
-      const birdRight = bird.x + CONFIG.BIRD_SIZE / 2 - 3;
-      const birdTop = bird.y - CONFIG.BIRD_SIZE / 2 + 3;
-      const birdBottom = bird.y + CONFIG.BIRD_SIZE / 2 - 3;
-
-      // Ground & ceiling
-      if (birdBottom >= CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT || birdTop <= 0) {
-        return true;
-      }
-
-      // Pipes
-      for (const pipe of pipes) {
-        const pipeLeft = pipe.x;
-        const pipeRight = pipe.x + CONFIG.PIPE_WIDTH;
-        const gapTop = pipe.topHeight;
-        const gapBottom = pipe.topHeight + CONFIG.PIPE_GAP;
-
-        if (birdRight > pipeLeft && birdLeft < pipeRight) {
-          if (birdTop < gapTop || birdBottom > gapBottom) {
-            return true;
+    function findBestEmptyCell(board) {
+      let best = null;
+      for (let row = 0; row < SIZE; row += 1) {
+        for (let col = 0; col < SIZE; col += 1) {
+          if (board[row][col] !== 0) {
+            continue;
+          }
+          const candidates = getCandidates(board, row, col);
+          if (candidates.length === 0) {
+            return { row, col, candidates };
+          }
+          if (!best || candidates.length < best.candidates.length) {
+            best = { row, col, candidates };
+            if (candidates.length === 1) {
+              return best;
+            }
           }
         }
       }
+      return best;
+    }
+
+    function solveBoard(board) {
+      const spot = findBestEmptyCell(board);
+      if (!spot) {
+        return true;
+      }
+      if (spot.candidates.length === 0) {
+        return false;
+      }
+      const candidates = shuffle(spot.candidates);
+      for (const candidate of candidates) {
+        board[spot.row][spot.col] = candidate;
+        if (solveBoard(board)) {
+          return true;
+        }
+      }
+      board[spot.row][spot.col] = 0;
       return false;
     }
 
-    // ─── Drawing Functions ───────────────────────────────────────────
+    function countSolutions(board, limit = 2) {
+      let count = 0;
+      function search() {
+        if (count >= limit) {
+          return;
+        }
+        const spot = findBestEmptyCell(board);
+        if (!spot) {
+          count += 1;
+          return;
+        }
+        if (spot.candidates.length === 0) {
+          return;
+        }
+        for (const candidate of spot.candidates) {
+          board[spot.row][spot.col] = candidate;
+          search();
+          if (count >= limit) {
+            break;
+          }
+        }
+        board[spot.row][spot.col] = 0;
+      }
+      search();
+      return count;
+    }
 
-    function drawSky() {
-      const grad = ctx.createLinearGradient(0, 0, 0, CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT);
-      if (gameState === STATE.GAME_OVER) {
-        grad.addColorStop(0, '#1a0a1e');
-        grad.addColorStop(0.5, '#2d1b3d');
-        grad.addColorStop(1, '#4a2040');
+    function fillBox(board, startRow, startCol) {
+      const values = shuffle(DIGITS);
+      let index = 0;
+      for (let row = startRow; row < startRow + BOX_SIZE; row += 1) {
+        for (let col = startCol; col < startCol + BOX_SIZE; col += 1) {
+          board[row][col] = values[index];
+          index += 1;
+        }
+      }
+    }
+
+    function generateSolvedBoard() {
+      const board = createEmptyBoard();
+      fillBox(board, 0, 0);
+      fillBox(board, 3, 3);
+      fillBox(board, 6, 6);
+      solveBoard(board);
+      return board;
+    }
+
+    function createPuzzleFromSolution(solution, removals) {
+      const puzzle = cloneBoard(solution);
+      const positions = shuffle(Array.from({ length: SIZE * SIZE }, (_, index) => index));
+      let removedCount = 0;
+      for (const position of positions) {
+        if (removedCount >= removals) {
+          break;
+        }
+        const row = Math.floor(position / SIZE);
+        const col = position % SIZE;
+        const backup = puzzle[row][col];
+        puzzle[row][col] = 0;
+
+        const candidateBoard = cloneBoard(puzzle);
+        const solutions = countSolutions(candidateBoard, 2);
+        if (solutions === 1) {
+          removedCount += 1;
+        } else {
+          puzzle[row][col] = backup;
+        }
+      }
+      return { puzzle, removedCount };
+    }
+
+    function parseBestTimes() {
+      try {
+        const raw = localStorage.getItem(BEST_TIME_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function saveBestTimes() {
+      localStorage.setItem(BEST_TIME_STORAGE_KEY, JSON.stringify(bestTimes));
+    }
+
+    function formatTime(totalSeconds) {
+      const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+      const seconds = String(totalSeconds % 60).padStart(2, "0");
+      return `${minutes}:${seconds}`;
+    }
+
+    function setStatus(message, type = "info") {
+      statusMessageEl.textContent = message;
+      statusMessageEl.classList.remove("error", "success");
+      if (type === "error") {
+        statusMessageEl.classList.add("error");
+      } else if (type === "success") {
+        statusMessageEl.classList.add("success");
+      }
+    }
+
+    function updateMistakeDisplay() {
+      mistakeValueEl.textContent = String(mistakes);
+    }
+
+    function updateBestDisplay() {
+      const difficulty = difficultySelectEl.value;
+      const best = bestTimes[difficulty];
+      bestValueEl.textContent = typeof best === "number" ? formatTime(best) : "--:--";
+    }
+
+    function startTimer() {
+      stopTimer();
+      elapsedSeconds = 0;
+      timerValueEl.textContent = formatTime(elapsedSeconds);
+      timerId = window.setInterval(() => {
+        elapsedSeconds += 1;
+        timerValueEl.textContent = formatTime(elapsedSeconds);
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerId !== null) {
+        clearInterval(timerId);
+        timerId = null;
+      }
+    }
+
+    function sameBox(rowA, colA, rowB, colB) {
+      return (
+        Math.floor(rowA / BOX_SIZE) === Math.floor(rowB / BOX_SIZE)
+        && Math.floor(colA / BOX_SIZE) === Math.floor(colB / BOX_SIZE)
+      );
+    }
+
+    function getCellKey(row, col) {
+      return `${row}-${col}`;
+    }
+
+    function isEditable(row, col) {
+      return initialBoard[row][col] === 0 && !gameFinished;
+    }
+
+    function clearInteractiveClasses() {
+      for (let row = 0; row < SIZE; row += 1) {
+        for (let col = 0; col < SIZE; col += 1) {
+          const cell = cellElements[row][col];
+          cell.classList.remove("selected", "peer", "same-value");
+        }
+      }
+    }
+
+    function highlightSelection() {
+      clearInteractiveClasses();
+      if (!selectedCell) {
+        return;
+      }
+      const { row, col } = selectedCell;
+      const selectedValue = currentBoard[row][col];
+      for (let r = 0; r < SIZE; r += 1) {
+        for (let c = 0; c < SIZE; c += 1) {
+          const cell = cellElements[r][c];
+          if (r === row || c === col || sameBox(r, c, row, col)) {
+            cell.classList.add("peer");
+          }
+          if (selectedValue !== 0 && currentBoard[r][c] === selectedValue) {
+            cell.classList.add("same-value");
+          }
+        }
+      }
+      cellElements[row][col].classList.add("selected");
+    }
+
+    function updateSingleCell(row, col) {
+      const cell = cellElements[row][col];
+      const value = currentBoard[row][col];
+      const isClue = initialBoard[row][col] !== 0;
+      const key = getCellKey(row, col);
+
+      cell.value = value === 0 ? "" : String(value);
+      cell.classList.toggle("clue", isClue);
+      cell.classList.toggle("hinted", hintedCells.has(key));
+      cell.classList.toggle("incorrect", value !== 0 && value !== solutionBoard[row][col]);
+      cell.readOnly = isClue || gameFinished;
+    }
+
+    function refreshBoard() {
+      for (let row = 0; row < SIZE; row += 1) {
+        for (let col = 0; col < SIZE; col += 1) {
+          updateSingleCell(row, col);
+        }
+      }
+      highlightSelection();
+    }
+
+    function buildBoard() {
+      boardEl.innerHTML = "";
+      cellElements = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
+
+      for (let row = 0; row < SIZE; row += 1) {
+        for (let col = 0; col < SIZE; col += 1) {
+          const cell = document.createElement("input");
+          cell.type = "text";
+          cell.className = "cell";
+          cell.maxLength = 1;
+          cell.inputMode = "numeric";
+          cell.autocomplete = "off";
+          cell.spellcheck = false;
+          cell.setAttribute("aria-label", `Row ${row + 1} Column ${col + 1}`);
+
+          if ((col + 1) % BOX_SIZE === 0 && col !== SIZE - 1) {
+            cell.classList.add("thick-right");
+          }
+          if ((row + 1) % BOX_SIZE === 0 && row !== SIZE - 1) {
+            cell.classList.add("thick-bottom");
+          }
+
+          cell.addEventListener("focus", () => {
+            selectedCell = { row, col };
+            highlightSelection();
+          });
+
+          cell.addEventListener("click", () => {
+            selectedCell = { row, col };
+            highlightSelection();
+          });
+
+          cell.addEventListener("input", () => {
+            if (!isEditable(row, col)) {
+              updateSingleCell(row, col);
+              return;
+            }
+            const clean = cell.value.replace(/[^1-9]/g, "").slice(-1);
+            const value = clean === "" ? 0 : Number(clean);
+            cell.value = clean;
+            applyPlayerMove(row, col, value);
+          });
+
+          cell.addEventListener("keydown", (event) => {
+            if (event.key.startsWith("Arrow")) {
+              event.preventDefault();
+              handleArrowNavigation(event.key);
+              return;
+            }
+
+            if (!isEditable(row, col)) {
+              return;
+            }
+
+            if (/^[1-9]$/.test(event.key)) {
+              event.preventDefault();
+              applyPlayerMove(row, col, Number(event.key));
+              return;
+            }
+
+            if (event.key === "Backspace" || event.key === "Delete" || event.key === "0") {
+              event.preventDefault();
+              applyPlayerMove(row, col, 0);
+            }
+          });
+
+          cellElements[row][col] = cell;
+          boardEl.appendChild(cell);
+        }
+      }
+    }
+
+    function handleArrowNavigation(key) {
+      if (!selectedCell) {
+        selectedCell = { row: 0, col: 0 };
+      }
+      const deltas = {
+        ArrowUp: [-1, 0],
+        ArrowDown: [1, 0],
+        ArrowLeft: [0, -1],
+        ArrowRight: [0, 1],
+      };
+      const [deltaRow, deltaCol] = deltas[key];
+      let nextRow = (selectedCell.row + deltaRow + SIZE) % SIZE;
+      let nextCol = (selectedCell.col + deltaCol + SIZE) % SIZE;
+      selectedCell = { row: nextRow, col: nextCol };
+      cellElements[nextRow][nextCol].focus();
+      highlightSelection();
+    }
+
+    function isPuzzleSolved() {
+      for (let row = 0; row < SIZE; row += 1) {
+        for (let col = 0; col < SIZE; col += 1) {
+          if (currentBoard[row][col] !== solutionBoard[row][col]) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    function finishGame(mode) {
+      if (gameFinished) {
+        return;
+      }
+      gameFinished = true;
+      stopTimer();
+      boardEl.classList.add("solved");
+      refreshBoard();
+
+      if (mode === "player") {
+        const difficulty = difficultySelectEl.value;
+        const previousBest = bestTimes[difficulty];
+        if (typeof previousBest !== "number" || elapsedSeconds < previousBest) {
+          bestTimes[difficulty] = elapsedSeconds;
+          saveBestTimes();
+          updateBestDisplay();
+          setStatus(`Solved in ${formatTime(elapsedSeconds)}. New best time!`, "success");
+        } else {
+          setStatus(`Solved in ${formatTime(elapsedSeconds)}. Great job!`, "success");
+        }
       } else {
-        grad.addColorStop(0, '#0f0c29');
-        grad.addColorStop(0.5, '#1a1a4e');
-        grad.addColorStop(1, '#24243e');
+        setStatus("Puzzle solved automatically.", "success");
       }
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT);
     }
 
-    function drawStars() {
-      stars.forEach(star => {
-        star.twinkle += star.speed;
-        const alpha = 0.3 + Math.sin(star.twinkle) * 0.3;
-        ctx.beginPath();
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-        ctx.fill();
-      });
+    function applyPlayerMove(row, col, value) {
+      if (!isEditable(row, col)) {
+        return;
+      }
+      const previousValue = currentBoard[row][col];
+      currentBoard[row][col] = value;
+      hintedCells.delete(getCellKey(row, col));
+      updateSingleCell(row, col);
+      highlightSelection();
+
+      if (value === 0) {
+        setStatus("Cell cleared.");
+        return;
+      }
+
+      if (value !== solutionBoard[row][col] && value !== previousValue) {
+        mistakes += 1;
+        updateMistakeDisplay();
+        setStatus("That number is incorrect.", "error");
+      } else if (value === solutionBoard[row][col]) {
+        setStatus("Good move.");
+      }
+
+      if (isPuzzleSolved()) {
+        finishGame("player");
+      }
     }
 
-    function drawClouds() {
-      clouds.forEach(cloud => {
-        if (gameState === STATE.PLAYING) {
-          cloud.x -= cloud.speed;
-          if (cloud.x + cloud.width < 0) {
-            cloud.x = CONFIG.WIDTH + cloud.width;
-            cloud.y = 40 + Math.random() * 150;
+    function resetGame() {
+      if (!initialBoard.length) {
+        return;
+      }
+      hintedCells = new Set();
+      currentBoard = cloneBoard(initialBoard);
+      mistakes = 0;
+      gameFinished = false;
+      selectedCell = null;
+      boardEl.classList.remove("solved");
+      updateMistakeDisplay();
+      startTimer();
+      refreshBoard();
+      setStatus("Board reset.");
+    }
+
+    function checkBoard() {
+      if (gameFinished) {
+        return;
+      }
+      let incorrect = 0;
+      let empty = 0;
+      for (let row = 0; row < SIZE; row += 1) {
+        for (let col = 0; col < SIZE; col += 1) {
+          const value = currentBoard[row][col];
+          if (value === 0) {
+            empty += 1;
+          } else if (value !== solutionBoard[row][col]) {
+            incorrect += 1;
+          }
+          updateSingleCell(row, col);
+        }
+      }
+      highlightSelection();
+      if (incorrect === 0 && empty === 0) {
+        finishGame("player");
+        return;
+      }
+      setStatus(`Check result: ${incorrect} incorrect, ${empty} empty.`, incorrect > 0 ? "error" : "info");
+    }
+
+    function giveHint() {
+      if (gameFinished) {
+        return;
+      }
+      const candidates = [];
+      for (let row = 0; row < SIZE; row += 1) {
+        for (let col = 0; col < SIZE; col += 1) {
+          if (initialBoard[row][col] === 0 && currentBoard[row][col] !== solutionBoard[row][col]) {
+            candidates.push({ row, col });
           }
         }
-        ctx.fillStyle = `rgba(255, 255, 255, ${cloud.opacity})`;
-        ctx.beginPath();
-        ctx.ellipse(cloud.x, cloud.y, cloud.width / 2, cloud.height / 2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(cloud.x - cloud.width * 0.25, cloud.y + 5, cloud.width * 0.3, cloud.height * 0.4, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(cloud.x + cloud.width * 0.25, cloud.y + 3, cloud.width * 0.35, cloud.height * 0.45, 0, 0, Math.PI * 2);
-        ctx.fill();
-      });
+      }
+
+      if (candidates.length === 0) {
+        setStatus("No hint needed. Board is already correct.", "success");
+        return;
+      }
+
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+      const { row, col } = pick;
+      currentBoard[row][col] = solutionBoard[row][col];
+      hintedCells.add(getCellKey(row, col));
+      selectedCell = { row, col };
+      updateSingleCell(row, col);
+      highlightSelection();
+      cellElements[row][col].focus();
+      setStatus("Hint revealed.");
+
+      if (isPuzzleSolved()) {
+        finishGame("player");
+      }
     }
 
-    function drawGround() {
-      if (gameState === STATE.PLAYING) {
-        groundOffset = (groundOffset + CONFIG.PIPE_SPEED) % 40;
+    function solvePuzzle() {
+      if (!solutionBoard.length) {
+        return;
       }
-
-      const gy = CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT;
-
-      // Ground base
-      const groundGrad = ctx.createLinearGradient(0, gy, 0, CONFIG.HEIGHT);
-      groundGrad.addColorStop(0, '#4a7c59');
-      groundGrad.addColorStop(0.08, '#3d6b4a');
-      groundGrad.addColorStop(0.15, '#8B6914');
-      groundGrad.addColorStop(0.4, '#7a5c10');
-      groundGrad.addColorStop(1, '#5a4210');
-      ctx.fillStyle = groundGrad;
-      ctx.fillRect(0, gy, CONFIG.WIDTH, CONFIG.GROUND_HEIGHT);
-
-      // Grass blades
-      ctx.strokeStyle = '#5a9e6a';
-      ctx.lineWidth = 2;
-      for (let x = -groundOffset; x < CONFIG.WIDTH + 40; x += 8) {
-        ctx.beginPath();
-        ctx.moveTo(x, gy);
-        ctx.quadraticCurveTo(x + 2, gy - 8, x + 4, gy - 12);
-        ctx.stroke();
-      }
-
-      // Ground line
-      ctx.strokeStyle = '#2d5a3a';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(0, gy);
-      ctx.lineTo(CONFIG.WIDTH, gy);
-      ctx.stroke();
-
-      // Dirt texture dots
-      ctx.fillStyle = 'rgba(0,0,0,0.1)';
-      for (let x = -groundOffset; x < CONFIG.WIDTH + 40; x += 20) {
-        for (let row = 0; row < 3; row++) {
-          ctx.beginPath();
-          ctx.arc(x + (row % 2) * 10, gy + 20 + row * 18, 2, 0, Math.PI * 2);
-          ctx.fill();
+      currentBoard = cloneBoard(solutionBoard);
+      hintedCells = new Set();
+      for (let row = 0; row < SIZE; row += 1) {
+        for (let col = 0; col < SIZE; col += 1) {
+          updateSingleCell(row, col);
         }
       }
+      highlightSelection();
+      finishGame("auto");
     }
 
-    function drawPipe(pipe) {
-      const topH = pipe.topHeight;
-      const bottomY = topH + CONFIG.PIPE_GAP;
-      const bottomH = CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT - bottomY;
-      const pw = CONFIG.PIPE_WIDTH;
-
-      // Pipe body gradient
-      const pipeGrad = ctx.createLinearGradient(pipe.x, 0, pipe.x + pw, 0);
-      pipeGrad.addColorStop(0, '#2ecc71');
-      pipeGrad.addColorStop(0.3, '#58d68d');
-      pipeGrad.addColorStop(0.5, '#7dcea0');
-      pipeGrad.addColorStop(0.7, '#58d68d');
-      pipeGrad.addColorStop(1, '#27ae60');
-
-      // Top pipe body
-      ctx.fillStyle = pipeGrad;
-      ctx.fillRect(pipe.x, 0, pw, topH);
-
-      // Top pipe cap
-      const capWidth = pw + 12;
-      const capHeight = 26;
-      const capX = pipe.x - 6;
-
-      const capGrad = ctx.createLinearGradient(capX, 0, capX + capWidth, 0);
-      capGrad.addColorStop(0, '#27ae60');
-      capGrad.addColorStop(0.3, '#58d68d');
-      capGrad.addColorStop(0.5, '#82e0aa');
-      capGrad.addColorStop(0.7, '#58d68d');
-      capGrad.addColorStop(1, '#1e8449');
-
-      ctx.fillStyle = capGrad;
-      roundRect(capX, topH - capHeight, capWidth, capHeight, 4);
-      ctx.fill();
-
-      // Top pipe cap border
-      ctx.strokeStyle = '#1e8449';
-      ctx.lineWidth = 2;
-      roundRect(capX, topH - capHeight, capWidth, capHeight, 4);
-      ctx.stroke();
-
-      // Pipe highlight (shiny streak)
-      ctx.fillStyle = 'rgba(255,255,255,0.12)';
-      ctx.fillRect(pipe.x + 8, 0, 6, topH - capHeight);
-
-      // Bottom pipe body
-      ctx.fillStyle = pipeGrad;
-      ctx.fillRect(pipe.x, bottomY, pw, bottomH);
-
-      // Bottom pipe cap
-      ctx.fillStyle = capGrad;
-      roundRect(capX, bottomY, capWidth, capHeight, 4);
-      ctx.fill();
-
-      ctx.strokeStyle = '#1e8449';
-      ctx.lineWidth = 2;
-      roundRect(capX, bottomY, capWidth, capHeight, 4);
-      ctx.stroke();
-
-      // Bottom pipe highlight
-      ctx.fillStyle = 'rgba(255,255,255,0.12)';
-      ctx.fillRect(pipe.x + 8, bottomY + capHeight, 6, bottomH - capHeight);
-
-      // Pipe shadow on ground
-      ctx.fillStyle = 'rgba(0,0,0,0.15)';
-      ctx.fillRect(pipe.x - 2, CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT, pw + 4, 10);
+    function setControlsDisabled(disabled) {
+      difficultySelectEl.disabled = disabled;
+      newGameBtn.disabled = disabled;
+      resetBtn.disabled = disabled;
+      checkBtn.disabled = disabled;
+      hintBtn.disabled = disabled;
+      solveBtn.disabled = disabled;
     }
 
-    function roundRect(x, y, w, h, r) {
-      ctx.beginPath();
-      ctx.moveTo(x + r, y);
-      ctx.lineTo(x + w - r, y);
-      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-      ctx.lineTo(x + w, y + h - r);
-      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-      ctx.lineTo(x + r, y + h);
-      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-      ctx.lineTo(x, y + r);
-      ctx.quadraticCurveTo(x, y, x + r, y);
-      ctx.closePath();
-    }
+    function generateNewPuzzle() {
+      setControlsDisabled(true);
+      stopTimer();
+      setStatus("Generating puzzle...");
+      boardEl.classList.remove("solved");
 
-    function drawBird() {
-      ctx.save();
-      ctx.translate(bird.x, bird.y);
-      ctx.rotate(bird.rotation);
+      window.setTimeout(() => {
+        try {
+          const difficulty = difficultySelectEl.value;
+          const removeCount = REMOVALS_BY_DIFFICULTY[difficulty];
 
-      const s = CONFIG.BIRD_SIZE;
+          solutionBoard = generateSolvedBoard();
+          const { puzzle, removedCount } = createPuzzleFromSolution(solutionBoard, removeCount);
+          initialBoard = puzzle;
+          currentBoard = cloneBoard(initialBoard);
+          hintedCells = new Set();
+          selectedCell = null;
+          mistakes = 0;
+          gameFinished = false;
 
-      // Bird body (ellipse)
-      const bodyGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, s);
-      bodyGrad.addColorStop(0, '#ffe066');
-      bodyGrad.addColorStop(0.6, '#ffc933');
-      bodyGrad.addColorStop(1, '#e6a800');
-      ctx.fillStyle = bodyGrad;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, s, s * 0.8, 0, 0, Math.PI * 2);
-      ctx.fill();
+          updateMistakeDisplay();
+          updateBestDisplay();
+          refreshBoard();
+          startTimer();
 
-      // Body outline
-      ctx.strokeStyle = '#cc8800';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, s, s * 0.8, 0, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Belly highlight
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
-      ctx.beginPath();
-      ctx.ellipse(-2, -3, s * 0.5, s * 0.35, -0.3, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Wing
-      bird.wingPhase += gameState === STATE.PLAYING ? 0.25 : 0.08;
-      const wingY = Math.sin(bird.wingPhase) * 5;
-
-      ctx.fillStyle = '#e6a800';
-      ctx.beginPath();
-      ctx.ellipse(-5, wingY + 2, 10, 6, -0.3, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#cc8800';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.ellipse(-5, wingY + 2, 10, 6, -0.3, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Eye (white)
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(10, -5, 7, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(10, -5, 7, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Pupil
-      ctx.fillStyle = '#1a1a1a';
-      ctx.beginPath();
-      ctx.arc(12, -5, 3.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Eye glint
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(13.5, -6.5, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Beak
-      ctx.fillStyle = '#e74c3c';
-      ctx.beginPath();
-      ctx.moveTo(16, 0);
-      ctx.lineTo(26, 2);
-      ctx.lineTo(16, 6);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = '#c0392b';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(16, 0);
-      ctx.lineTo(26, 2);
-      ctx.lineTo(16, 6);
-      ctx.closePath();
-      ctx.stroke();
-
-      // Tail feathers
-      ctx.fillStyle = '#d4a017';
-      ctx.beginPath();
-      ctx.moveTo(-16, -2);
-      ctx.lineTo(-26, -8);
-      ctx.lineTo(-22, 0);
-      ctx.lineTo(-26, 8);
-      ctx.lineTo(-16, 4);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.restore();
-    }
-
-    function drawBirdTrail() {
-      for (let i = 0; i < bird.trail.length; i++) {
-        const t = bird.trail[i];
-        const alpha = t.life * 0.3;
-        ctx.fillStyle = `rgba(255, 200, 50, ${alpha})`;
-        ctx.beginPath();
-        ctx.arc(t.x, t.y, t.life * 5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    function drawParticles() {
-      particles.forEach(p => {
-        ctx.globalAlpha = p.life;
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      ctx.globalAlpha = 1;
-    }
-
-    function drawScore() {
-      if (gameState !== STATE.PLAYING) return;
-
-      // Score shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.font = 'bold 52px "Segoe UI", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(score, CONFIG.WIDTH / 2 + 3, 73);
-
-      // Score text
-      ctx.fillStyle = '#fff';
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 4;
-      ctx.font = 'bold 52px "Segoe UI", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.strokeText(score, CONFIG.WIDTH / 2, 70);
-      ctx.fillText(score, CONFIG.WIDTH / 2, 70);
-    }
-
-    function drawMenuScreen() {
-      // Title
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.font = 'bold 48px "Segoe UI", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Arcade Bird', CONFIG.WIDTH / 2 + 3, 153);
-
-      ctx.fillStyle = '#ffc933';
-      ctx.strokeStyle = '#cc8800';
-      ctx.lineWidth = 3;
-      ctx.font = 'bold 48px "Segoe UI", sans-serif';
-      ctx.strokeText('Arcade Bird', CONFIG.WIDTH / 2, 150);
-      ctx.fillText('Arcade Bird', CONFIG.WIDTH / 2, 150);
-
-      // Subtitle
-      const pulse = 0.5 + Math.sin(frameCount * 0.05) * 0.3;
-      ctx.fillStyle = `rgba(255, 255, 255, ${pulse})`;
-      ctx.font = '20px "Segoe UI", sans-serif';
-      ctx.fillText('Tap or Press Space to Start', CONFIG.WIDTH / 2, 340);
-
-      // High score
-      if (highScore > 0) {
-        ctx.fillStyle = 'rgba(255, 200, 50, 0.8)';
-        ctx.font = '18px "Segoe UI", sans-serif';
-        ctx.fillText(`Best: ${highScore}`, CONFIG.WIDTH / 2, 380);
-      }
-
-      // Instructions
-      ctx.fillStyle = 'rgba(255,255,255,0.4)';
-      ctx.font = '14px "Segoe UI", sans-serif';
-      ctx.fillText('Space / Click / Tap to Flap', CONFIG.WIDTH / 2, CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT - 30);
-
-      // Animated bird on menu
-      const menuBirdY = 230 + Math.sin(frameCount * 0.04) * 15;
-      ctx.save();
-      ctx.translate(CONFIG.WIDTH / 2, menuBirdY);
-      ctx.rotate(Math.sin(frameCount * 0.04) * 0.15);
-
-      const s = 24;
-      const bodyGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, s);
-      bodyGrad.addColorStop(0, '#ffe066');
-      bodyGrad.addColorStop(0.6, '#ffc933');
-      bodyGrad.addColorStop(1, '#e6a800');
-      ctx.fillStyle = bodyGrad;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, s, s * 0.8, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#cc8800';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      // Wing
-      const wingY = Math.sin(frameCount * 0.15) * 6;
-      ctx.fillStyle = '#e6a800';
-      ctx.beginPath();
-      ctx.ellipse(-6, wingY + 2, 12, 7, -0.3, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Eye
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(12, -6, 8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.fillStyle = '#1a1a1a';
-      ctx.beginPath();
-      ctx.arc(14, -6, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(15.5, -7.5, 1.8, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Beak
-      ctx.fillStyle = '#e74c3c';
-      ctx.beginPath();
-      ctx.moveTo(19, 0);
-      ctx.lineTo(31, 2);
-      ctx.lineTo(19, 7);
-      ctx.closePath();
-      ctx.fill();
-
-      // Tail
-      ctx.fillStyle = '#d4a017';
-      ctx.beginPath();
-      ctx.moveTo(-19, -3);
-      ctx.lineTo(-31, -10);
-      ctx.lineTo(-26, 0);
-      ctx.lineTo(-31, 10);
-      ctx.lineTo(-19, 5);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.restore();
-    }
-
-    function drawGameOverScreen() {
-      // Overlay
-      const overlayAlpha = Math.min(frameCount * 0.02, 0.6);
-      ctx.fillStyle = `rgba(0, 0, 0, ${overlayAlpha})`;
-      ctx.fillRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
-
-      if (frameCount < 15) return;
-
-      // Game Over panel
-      const panelW = 280;
-      const panelH = 220;
-      const panelX = (CONFIG.WIDTH - panelW) / 2;
-      const panelY = (CONFIG.HEIGHT - panelH) / 2 - 30;
-
-      // Panel background
-      ctx.fillStyle = 'rgba(30, 30, 50, 0.95)';
-      roundRect(panelX, panelY, panelW, panelH, 16);
-      ctx.fill();
-
-      // Panel border
-      ctx.strokeStyle = 'rgba(255, 200, 50, 0.4)';
-      ctx.lineWidth = 2;
-      roundRect(panelX, panelY, panelW, panelH, 16);
-      ctx.stroke();
-
-      // Game Over title
-      ctx.fillStyle = '#e74c3c';
-      ctx.font = 'bold 36px "Segoe UI", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Game Over', CONFIG.WIDTH / 2, panelY + 50);
-
-      // Score
-      ctx.fillStyle = '#fff';
-      ctx.font = '22px "Segoe UI", sans-serif';
-      ctx.fillText(`Score: ${score}`, CONFIG.WIDTH / 2, panelY + 100);
-
-      // High score
-      ctx.fillStyle = '#ffc933';
-      ctx.font = '22px "Segoe UI", sans-serif';
-      ctx.fillText(`Best: ${highScore}`, CONFIG.WIDTH / 2, panelY + 135);
-
-      // New best indicator
-      if (score === highScore && score > 0) {
-        ctx.fillStyle = '#2ecc71';
-        ctx.font = 'bold 16px "Segoe UI", sans-serif';
-        ctx.fillText('NEW BEST!', CONFIG.WIDTH / 2, panelY + 165);
-      }
-
-      // Restart hint
-      if (frameCount > 30) {
-        const pulse = 0.4 + Math.sin(frameCount * 0.06) * 0.3;
-        ctx.fillStyle = `rgba(255, 255, 255, ${pulse})`;
-        ctx.font = '16px "Segoe UI", sans-serif';
-        ctx.fillText('Tap to Restart', CONFIG.WIDTH / 2, panelY + panelH + 40);
-      }
-    }
-
-    // ─── Update Functions ────────────────────────────────────────────
-    function updateBird() {
-      bird.velocity += CONFIG.GRAVITY;
-      bird.y += bird.velocity;
-
-      // Rotation based on velocity
-      const targetRotation = Math.max(-0.5, Math.min(bird.velocity * 0.06, 1.2));
-      bird.rotation += (targetRotation - bird.rotation) * 0.15;
-
-      // Trail
-      if (frameCount % 2 === 0) {
-        bird.trail.push({ x: bird.x - 10, y: bird.y, life: 1 });
-      }
-      bird.trail = bird.trail.filter(t => {
-        t.life -= 0.05;
-        t.x -= CONFIG.PIPE_SPEED * 0.5;
-        return t.life > 0;
-      });
-    }
-
-    function updatePipes() {
-      // Spawn pipes
-      if (frameCount % CONFIG.PIPE_SPAWN_INTERVAL === 0 && frameCount > 0) {
-        spawnPipe();
-      }
-
-      // Move & score
-      pipes.forEach(pipe => {
-        pipe.x -= CONFIG.PIPE_SPEED;
-
-        if (!pipe.scored && pipe.x + CONFIG.PIPE_WIDTH < bird.x) {
-          pipe.scored = true;
-          score++;
-          spawnScoreParticles();
+          const summary = removedCount < removeCount
+            ? `New ${difficulty} puzzle ready (removed ${removedCount} cells).`
+            : `New ${difficulty} puzzle ready.`;
+          setStatus(summary, "success");
+        } catch (error) {
+          setStatus("Failed to generate puzzle. Please try again.", "error");
+        } finally {
+          setControlsDisabled(false);
         }
-      });
-
-      // Remove off-screen pipes
-      pipes = pipes.filter(p => p.x + CONFIG.PIPE_WIDTH > -10);
+      }, 25);
     }
 
-    function updateParticles() {
-      particles.forEach(p => {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vy += 0.05;
-        p.life -= p.decay;
-      });
-      particles = particles.filter(p => p.life > 0);
-    }
-
-    // ─── Main Game Loop ──────────────────────────────────────────────
-    function gameLoop() {
-      frameCount++;
-
-      // Screen shake offset
-      let shakeX = 0, shakeY = 0;
-      if (screenShake > 0) {
-        shakeX = (Math.random() - 0.5) * screenShake;
-        shakeY = (Math.random() - 0.5) * screenShake;
-        screenShake *= 0.85;
-        if (screenShake < 0.5) screenShake = 0;
-      }
-
-      ctx.save();
-      ctx.translate(shakeX, shakeY);
-
-      // Draw background
-      drawSky();
-      drawStars();
-      drawClouds();
-
-      if (gameState === STATE.PLAYING) {
-        updateBird();
-        updatePipes();
-        updateParticles();
-
-        // Check collisions
-        if (checkCollision()) {
-          gameState = STATE.GAME_OVER;
-          if (score > highScore) {
-            highScore = score;
-            localStorage.setItem('arcadeBirdHighScore', highScore);
+    function buildNumpad() {
+      numpadEl.innerHTML = "";
+      for (let value = 1; value <= 9; value += 1) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = String(value);
+        button.addEventListener("click", () => {
+          if (!selectedCell) {
+            setStatus("Select a cell first.");
+            return;
           }
-          spawnDeathParticles();
-          screenShake = 12;
-          frameCount = 0;
-        }
-      } else if (gameState === STATE.MENU) {
-        // Gentle float for menu bird
-        updateParticles();
-      } else if (gameState === STATE.GAME_OVER) {
-        // Bird falls after death
-        if (bird.y < CONFIG.HEIGHT - CONFIG.GROUND_HEIGHT - CONFIG.BIRD_SIZE) {
-          bird.velocity += CONFIG.GRAVITY;
-          bird.y += bird.velocity;
-          bird.rotation += 0.08;
-        }
-        updateParticles();
+          applyPlayerMove(selectedCell.row, selectedCell.col, value);
+        });
+        numpadEl.appendChild(button);
       }
-
-      // Draw game elements
-      pipes.forEach(drawPipe);
-      drawBirdTrail();
-      drawBird();
-      drawParticles();
-      drawGround();
-      drawScore();
-
-      // Draw state screens
-      if (gameState === STATE.MENU) {
-        drawMenuScreen();
-      } else if (gameState === STATE.GAME_OVER) {
-        drawGameOverScreen();
-      }
-
-      ctx.restore();
-
-      requestAnimationFrame(gameLoop);
+      const clearButton = document.createElement("button");
+      clearButton.type = "button";
+      clearButton.textContent = "Clear";
+      clearButton.addEventListener("click", () => {
+        if (!selectedCell) {
+          setStatus("Select a cell first.");
+          return;
+        }
+        applyPlayerMove(selectedCell.row, selectedCell.col, 0);
+      });
+      numpadEl.appendChild(clearButton);
     }
 
-    // ─── Input Handling ──────────────────────────────────────────────
-    document.addEventListener('keydown', (e) => {
-      if (e.code === 'Space' || e.code === 'ArrowUp') {
-        e.preventDefault();
-        jump();
-      }
-    });
+    function registerEvents() {
+      newGameBtn.addEventListener("click", generateNewPuzzle);
+      resetBtn.addEventListener("click", resetGame);
+      checkBtn.addEventListener("click", checkBoard);
+      hintBtn.addEventListener("click", giveHint);
+      solveBtn.addEventListener("click", solvePuzzle);
+      difficultySelectEl.addEventListener("change", updateBestDisplay);
+    }
 
-    canvas.addEventListener('click', (e) => {
-      e.preventDefault();
-      jump();
-    });
+    function init() {
+      bestTimes = parseBestTimes();
+      buildBoard();
+      buildNumpad();
+      registerEvents();
+      updateBestDisplay();
+      generateNewPuzzle();
+    }
 
-    canvas.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      jump();
-    }, { passive: false });
-
-    // ─── Start ───────────────────────────────────────────────────────
-    gameLoop();
+    init();
   </script>
 </body>
 </html>

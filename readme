@@ -1,2 +1,13 @@
-readme
-start
+Sudoku Web Game
+
+How to run:
+1. Open index.html in a modern browser.
+2. Choose a difficulty and click "New Game".
+3. Fill numbers 1-9 so each row, column, and 3x3 box is valid.
+
+Features:
+- Random puzzle generation with unique-solution check
+- Difficulty levels: Easy / Medium / Hard
+- Timer and mistake counter
+- Check, Hint, Reset, and Solve actions
+- Keyboard support (1-9, arrows, backspace)
