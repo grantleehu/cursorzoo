@@ -11,6 +11,7 @@
 - [快速开始](#快速开始)
 - [在 Cursor 中使用](#在-cursor-中使用)
 - [如何发布自己的 MCP Server](#如何发布自己的-mcp-server)
+- [实战：高德地图 MCP 在各平台的配置](#实战高德地图-mcp-在各平台的配置)
 - [常见问题](#常见问题)
 
 ---
@@ -474,6 +475,191 @@ mcp-publisher init
   }
 }
 ```
+
+---
+
+## 实战：高德地图 MCP 在各平台的配置
+
+高德地图 MCP Server 是一个非常好的真实案例——它同时支持 stdio、SSE、Streamable HTTP 三种传输方式，可以在各种 AI 客户端中使用。
+
+### 前置准备：获取高德 API Key
+
+1. 登录 [高德开放平台控制台](https://console.amap.com/)
+2. 进入「应用管理」→ 创建新应用
+3. 点击「添加 Key」，服务平台选择 **「Web服务」**
+4. 复制生成的 Key，下面配置要用
+
+> 高德 MCP 提供的能力：地理编码、逆地理编码、关键词/周边搜索、驾车/步行/骑行/公交路径规划、天气查询、IP 定位、距离测量、生成专属地图等。
+
+---
+
+### 一、在 Cursor 中配置
+
+Cursor 支持所有三种方式，推荐使用 **Streamable HTTP**（最简单，无需 Node.js）。
+
+**方式 A：Streamable HTTP（推荐）**
+
+在项目根目录创建 `.cursor/mcp.json`：
+
+```json
+{
+  "mcpServers": {
+    "amap-maps": {
+      "url": "https://mcp.amap.com/mcp?key=你的API_Key"
+    }
+  }
+}
+```
+
+一行 `url` 搞定，不需要安装任何东西。
+
+**方式 B：SSE 传输**
+
+```json
+{
+  "mcpServers": {
+    "amap-maps": {
+      "url": "https://mcp.amap.com/sse?key=你的API_Key"
+    }
+  }
+}
+```
+
+**方式 C：本地 stdio（npx）**
+
+需要 Node.js >= 20：
+
+```json
+{
+  "mcpServers": {
+    "amap-maps": {
+      "command": "npx",
+      "args": ["-y", "@amap/amap-maps-mcp-server"],
+      "env": {
+        "AMAP_MAPS_API_KEY": "你的API_Key"
+      }
+    }
+  }
+}
+```
+
+配置完成后，重启 Cursor 或在 Settings → MCP 中点击刷新，看到 `amap-maps` 状态变绿即可。
+
+---
+
+### 二、在 Gemini CLI 中配置
+
+Gemini CLI 是 Google 的命令行 AI 工具，配置文件是 `settings.json`。
+
+**方式 A：命令行快速添加（推荐）**
+
+```bash
+# Streamable HTTP 方式
+gemini mcp add --transport http amap-maps "https://mcp.amap.com/mcp?key=你的API_Key"
+
+# SSE 方式
+gemini mcp add --transport sse amap-maps "https://mcp.amap.com/sse?key=你的API_Key"
+
+# stdio 方式（本地 npx）
+gemini mcp add -e AMAP_MAPS_API_KEY=你的API_Key amap-maps npx -y @amap/amap-maps-mcp-server
+```
+
+默认添加到项目级配置（`.gemini/settings.json`），加 `-s user` 可改为全局配置（`~/.gemini/settings.json`）。
+
+**方式 B：手动编辑 settings.json**
+
+项目级：`.gemini/settings.json`；全局级：`~/.gemini/settings.json`
+
+Streamable HTTP 方式：
+
+```json
+{
+  "mcpServers": {
+    "amap-maps": {
+      "httpUrl": "https://mcp.amap.com/mcp?key=你的API_Key"
+    }
+  }
+}
+```
+
+stdio 方式：
+
+```json
+{
+  "mcpServers": {
+    "amap-maps": {
+      "command": "npx",
+      "args": ["-y", "@amap/amap-maps-mcp-server"],
+      "env": {
+        "AMAP_MAPS_API_KEY": "你的API_Key"
+      }
+    }
+  }
+}
+```
+
+配置完成后运行 `gemini`，输入 `/mcp list` 验证连接状态。
+
+---
+
+### 三、在 Antigravity 中配置
+
+Antigravity 是 Google 的 AI IDE。它的 MCP 配置文件是 `mcp_config.json`，通过 IDE 界面访问。
+
+**打开配置文件**：
+
+1. 点击 Agent 面板右上角的 `...` 菜单
+2. 选择 **「MCP Servers」**
+3. 点击 **「Manage MCP Servers」**
+4. 点击 **「View raw config」** 打开 `mcp_config.json`
+
+**方式 A：stdio 方式（推荐，兼容性最好）**
+
+```json
+{
+  "mcpServers": {
+    "amap-maps": {
+      "command": "npx",
+      "args": ["-y", "@amap/amap-maps-mcp-server"],
+      "env": {
+        "AMAP_MAPS_API_KEY": "你的API_Key"
+      }
+    }
+  }
+}
+```
+
+**方式 B：通过 HTTP 适配器连接远程 Server**
+
+如果 Antigravity 版本不直接支持 HTTP URL，可以用适配器桥接：
+
+```json
+{
+  "mcpServers": {
+    "amap-maps": {
+      "command": "npx",
+      "args": ["-y", "@pyroprompts/mcp-stdio-to-streamable-http-adapter"],
+      "env": {
+        "URI": "https://mcp.amap.com/mcp?key=你的API_Key"
+      }
+    }
+  }
+}
+```
+
+保存后重启 Agent 面板生效。
+
+---
+
+### 三个平台对比速查
+
+| 平台 | 配置文件位置 | 推荐方式 | 是否支持直接 HTTP URL |
+|------|------------|---------|---------------------|
+| **Cursor** | `.cursor/mcp.json` | Streamable HTTP | 支持（`"url": "..."`） |
+| **Gemini CLI** | `.gemini/settings.json` 或 `~/.gemini/settings.json` | HTTP 或 stdio | 支持（`"httpUrl": "..."` 或 CLI 命令） |
+| **Antigravity** | IDE 内 `mcp_config.json` | stdio (npx) | 需适配器或新版本支持 |
+
+> **提示**：不管哪个平台，stdio 方式的配置格式几乎完全一致（`command` + `args` + `env`），这正是 MCP 标准化的好处。
 
 ---
 
