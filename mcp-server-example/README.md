@@ -4,6 +4,7 @@
 
 - [什么是 MCP Server](#什么是-mcp-server)
 - [MCP 的核心架构](#mcp-的核心架构)
+- [MCP Server 运行在哪里](#mcp-server-运行在哪里)
 - [MCP Server 能做什么](#mcp-server-能做什么)
 - [三大核心能力详解](#三大核心能力详解)
 - [本项目示例说明](#本项目示例说明)
@@ -65,6 +66,120 @@ MCP 采用 **客户端-服务端（Client-Server）** 架构：
 通信方式：
 - **stdio（标准输入输出）**：最常见，Server 作为子进程运行
 - **Streamable HTTP**：适合远程部署的 Server
+
+---
+
+## MCP Server 运行在哪里
+
+MCP Server 的运行位置取决于你选择的 **传输方式（Transport）**。目前主要有两种模式：
+
+### 模式一：本地运行（stdio 传输）— 最常见
+
+```
+┌─────────────────────────────────────────────┐
+│            你的电脑（本地）                     │
+│                                               │
+│  ┌───────────────┐     stdio      ┌────────┐ │
+│  │  Cursor /      │ ◄──────────► │  MCP    │ │
+│  │  Claude Desktop │  stdin/stdout │  Server │ │
+│  └───────────────┘               └────────┘ │
+│                                  (子进程)     │
+└─────────────────────────────────────────────┘
+```
+
+**工作方式**：Host（如 Cursor）直接在本地把 MCP Server 作为 **子进程** 启动，通过标准输入输出（stdin/stdout）通信。
+
+**特点**：
+- 配置最简单，不需要网络
+- Server 随 Cursor 启动/关闭，生命周期由 Host 管理
+- 只能被本机上的一个 Client 使用
+- 绝大多数 MCP Server 都是这种模式
+
+**适用场景**：个人开发工具、本地文件操作、本地数据库访问
+
+**配置示例**（`.cursor/mcp.json`）：
+
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "command": "node",
+      "args": ["/path/to/dist/index.js"]
+    }
+  }
+}
+```
+
+### 模式二：远程部署（Streamable HTTP 传输）
+
+```
+┌──────────────┐          HTTPS           ┌──────────────────┐
+│  你的电脑      │                          │  云服务器 / 容器    │
+│              │        /mcp 端点          │                    │
+│  Cursor ─────┼── POST/GET+SSE ────────►│  MCP Server       │
+│              │                          │  (HTTP 服务)       │
+│  其他 AI 客户 ─┼── POST/GET+SSE ────────►│                    │
+│  端也能连接    │                          │                    │
+└──────────────┘                          └──────────────────┘
+```
+
+**工作方式**：MCP Server 作为 HTTP 服务部署在远程服务器上，暴露 `/mcp` 端点，Client 通过网络连接。
+
+**特点**：
+- 多个客户端可以同时连接同一个 Server
+- 支持按需伸缩、弹性扩容
+- 需要处理认证、TLS、CORS 等安全问题
+- 适合团队共享或公开服务
+
+**适用场景**：团队共享工具、SaaS 服务、需要访问云端资源的场景
+
+**可以部署到的平台**：
+| 平台 | 说明 |
+|------|------|
+| **Google Cloud Run** | 支持 Streamable HTTP，可 scale-to-zero |
+| **AWS Lambda / ECS** | 容器化部署 |
+| **Cloudflare Workers** | 边缘计算，延迟低 |
+| **Koyeb** | 支持 scale-to-zero |
+| **自己的服务器 + Docker** | 完全掌控 |
+| **任何支持 Node.js/Python 的 VPS** | 最灵活 |
+
+**配置示例**（`.cursor/mcp.json`）：
+
+```json
+{
+  "mcpServers": {
+    "remote-server": {
+      "url": "https://your-server.example.com/mcp"
+    }
+  }
+}
+```
+
+### 模式三：Docker 容器（本地或远程均可）
+
+```bash
+# stdio 模式（本地容器）
+docker run -i my-mcp-server
+
+# HTTP 模式（远程容器）
+docker run -p 3000:3000 my-mcp-server --http
+```
+
+Docker 容器化后，本地和远程部署都很方便，还能保证环境一致性。
+
+### 总结对比
+
+| 维度 | 本地 stdio | 远程 HTTP |
+|------|-----------|-----------|
+| **运行位置** | 你的电脑上，作为子进程 | 云服务器 / 容器平台 |
+| **启动方式** | Host 自动启动 | 需要手动部署运行 |
+| **通信方式** | stdin / stdout | HTTP POST + SSE |
+| **并发客户端** | 仅 1 个 | 多个 |
+| **配置复杂度** | 低（只需 command + args） | 中高（需处理网络、安全） |
+| **适用场景** | 个人开发工具 | 团队共享、公开服务 |
+| **目前使用率** | 绝大多数 | 逐渐增多 |
+
+> **建议**：如果你刚开始开发 MCP Server，从 stdio 模式起步就好。等需要团队共享或公开发布时，再改为 HTTP 模式。两种模式的 Server 逻辑代码完全一样，只是 Transport 层不同。
 
 ---
 
