@@ -1,0 +1,421 @@
+# MCP Server 完全指南
+
+## 目录
+
+- [什么是 MCP Server](#什么是-mcp-server)
+- [MCP 的核心架构](#mcp-的核心架构)
+- [MCP Server 能做什么](#mcp-server-能做什么)
+- [三大核心能力详解](#三大核心能力详解)
+- [本项目示例说明](#本项目示例说明)
+- [快速开始](#快速开始)
+- [在 Cursor 中使用](#在-cursor-中使用)
+- [如何发布自己的 MCP Server](#如何发布自己的-mcp-server)
+- [常见问题](#常见问题)
+
+---
+
+## 什么是 MCP Server
+
+**MCP（Model Context Protocol，模型上下文协议）** 是由 Anthropic 提出的一个开放标准协议。
+它的核心目标是：**让 AI 模型（如 Claude、GPT 等）能够安全、标准化地与外部工具和数据源交互。**
+
+你可以把 MCP 理解为 **"AI 的 USB 接口"**：
+
+- 就像 USB 让各种外设（键盘、鼠标、打印机）通过统一接口连接电脑一样
+- MCP 让各种工具和数据源通过统一协议连接到 AI 模型
+
+**MCP Server** 就是一个遵循 MCP 协议的服务端程序，它向 AI 暴露工具（Tools）、数据（Resources）和提示词模板（Prompts）。
+
+### 为什么需要 MCP？
+
+在 MCP 出现之前，每个 AI 应用要对接外部工具，都需要自己写一套集成代码。这导致：
+- 每个工具都需要针对不同 AI 平台做适配
+- 开发者重复造轮子
+- 没有统一的安全和权限标准
+
+MCP 解决了这些问题，让一个 MCP Server 可以被任何支持 MCP 的 AI 客户端（如 Cursor、Claude Desktop）直接使用。
+
+---
+
+## MCP 的核心架构
+
+MCP 采用 **客户端-服务端（Client-Server）** 架构：
+
+```
+┌──────────────────────────────────────────────────┐
+│              Host（宿主应用）                       │
+│         例如：Cursor、Claude Desktop               │
+│                                                    │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐  │
+│  │  MCP Client │  │  MCP Client │  │  MCP Client │  │
+│  └──────┬─────┘  └──────┬─────┘  └──────┬─────┘  │
+└─────────┼───────────────┼───────────────┼────────┘
+          │               │               │
+          ▼               ▼               ▼
+   ┌────────────┐  ┌────────────┐  ┌────────────┐
+   │ MCP Server │  │ MCP Server │  │ MCP Server │
+   │  (本地工具)  │  │ (数据库)    │  │ (API 服务)  │
+   └────────────┘  └────────────┘  └────────────┘
+```
+
+- **Host（宿主）**：运行 AI 的应用程序（如 Cursor）
+- **MCP Client（客户端）**：Host 内部的连接器，每个 Client 对应一个 Server
+- **MCP Server（服务端）**：提供工具、资源、提示词的程序
+
+通信方式：
+- **stdio（标准输入输出）**：最常见，Server 作为子进程运行
+- **Streamable HTTP**：适合远程部署的 Server
+
+---
+
+## MCP Server 能做什么
+
+MCP Server 提供三大核心能力：
+
+| 能力 | 说明 | 控制方 | 类比 |
+|------|------|--------|------|
+| **Tools（工具）** | LLM 可以调用的函数 | 模型控制 | 相当于给 AI 一把"瑞士军刀" |
+| **Resources（资源）** | LLM 可以读取的数据 | 应用控制 | 相当于给 AI 一个"图书馆" |
+| **Prompts（提示词模板）** | 可复用的提示词 | 用户控制 | 相当于给 AI 一套"操作手册" |
+
+### 真实场景举例
+
+- **数据库 MCP Server**：暴露 `query_sql` 工具，AI 就能直接查询数据库
+- **GitHub MCP Server**：暴露 `create_issue`、`list_prs` 等工具，AI 就能管理项目
+- **文件系统 MCP Server**：暴露 `read_file`、`write_file` 工具，AI 就能操作文件
+- **天气 MCP Server**：暴露 `get_weather` 工具，AI 就能查询天气
+- **Slack MCP Server**：暴露 `send_message` 工具，AI 就能发送消息
+
+---
+
+## 三大核心能力详解
+
+### 1. Tools（工具）
+
+Tools 是 MCP 最核心的能力。每个 Tool 包含：
+- **名称**：唯一标识符（如 `calculate`）
+- **描述**：告诉 AI 这个工具做什么
+- **输入参数 Schema**：定义参数的类型和约束（使用 JSON Schema / Zod）
+- **处理函数**：实际执行逻辑
+
+```typescript
+server.tool(
+  "calculate",              // 工具名称
+  "Perform arithmetic",     // 描述
+  {                          // 参数 Schema（Zod）
+    operation: z.enum(["add", "subtract", "multiply", "divide"]),
+    a: z.number(),
+    b: z.number(),
+  },
+  async ({ operation, a, b }) => {   // 处理函数
+    const result = /* ... 计算逻辑 ... */;
+    return {
+      content: [{ type: "text", text: String(result) }],
+    };
+  }
+);
+```
+
+### 2. Resources（资源）
+
+Resources 让 AI 能够读取结构化数据。它们通过 URI 访问：
+
+```typescript
+// 静态资源
+server.resource(
+  "config",
+  "config://app",
+  async (uri) => ({
+    contents: [{
+      uri: uri.href,
+      mimeType: "application/json",
+      text: JSON.stringify({ theme: "dark", lang: "zh-CN" }),
+    }],
+  })
+);
+
+// 动态资源模板
+server.resource(
+  "user-profile",
+  new ResourceTemplate("user://{userId}", { list: undefined }),
+  async (uri, { userId }) => ({
+    contents: [{
+      uri: uri.href,
+      mimeType: "application/json",
+      text: JSON.stringify({ id: userId, name: "..." }),
+    }],
+  })
+);
+```
+
+### 3. Prompts（提示词模板）
+
+Prompts 是可参数化的提示词模板，方便复用：
+
+```typescript
+server.prompt(
+  "code_review",
+  "Generate a code review prompt",
+  { code: z.string(), language: z.string().optional() },
+  ({ code, language }) => ({
+    messages: [{
+      role: "user",
+      content: {
+        type: "text",
+        text: `Please review this ${language ?? ""} code:\n\`\`\`\n${code}\n\`\`\``,
+      },
+    }],
+  })
+);
+```
+
+---
+
+## 本项目示例说明
+
+本项目（`mcp-server-example`）包含了完整的 MCP Server 示例，展示了全部三种能力：
+
+### Tools
+| 工具名 | 功能 |
+|--------|------|
+| `calculate` | 四则运算（加减乘除） |
+| `get_current_time` | 获取当前时间 |
+| `string_utils` | 字符串操作（反转、大小写、字数统计） |
+
+### Resources
+| 资源名 | URI | 功能 |
+|--------|-----|------|
+| `server-info` | `info://server` | 返回 Server 元信息 |
+| `greeting` | `greeting://{name}` | 动态生成问候语 |
+
+### Prompts
+| 模板名 | 功能 |
+|--------|------|
+| `code_review` | 生成代码审查提示词 |
+| `summarize` | 生成文本摘要提示词 |
+
+---
+
+## 快速开始
+
+### 1. 安装依赖
+
+```bash
+cd mcp-server-example
+npm install
+```
+
+### 2. 编译
+
+```bash
+npm run build
+```
+
+### 3. 运行
+
+```bash
+npm start
+```
+
+Server 会通过 stdio 方式启动，等待 MCP Client 连接。
+
+---
+
+## 在 Cursor 中使用
+
+在你的项目根目录创建 `.cursor/mcp.json` 文件：
+
+```json
+{
+  "mcpServers": {
+    "example-server": {
+      "command": "node",
+      "args": ["/absolute/path/to/mcp-server-example/dist/index.js"]
+    }
+  }
+}
+```
+
+也可以在 Cursor 设置 > MCP 中手动添加。
+
+如果你已将 Server 发布到 npm：
+
+```json
+{
+  "mcpServers": {
+    "example-server": {
+      "command": "npx",
+      "args": ["-y", "mcp-server-example"]
+    }
+  }
+}
+```
+
+---
+
+## 如何发布自己的 MCP Server
+
+### 第一步：开发你的 Server
+
+1. **初始化项目**（或使用官方脚手架）：
+
+```bash
+# 方法一：手动创建（参考本项目）
+mkdir my-mcp-server && cd my-mcp-server
+npm init -y
+npm install @modelcontextprotocol/sdk zod
+npm install -D typescript @types/node
+
+# 方法二：使用官方脚手架
+npx @modelcontextprotocol/create-server my-mcp-server
+```
+
+2. **编写 Server 代码**（参考 `src/index.ts`）
+
+3. **编译测试**：
+
+```bash
+npm run build
+npm start
+```
+
+### 第二步：发布到 npm
+
+1. **注册 npm 账号**（如果还没有）：
+
+去 [npmjs.com](https://www.npmjs.com/) 注册
+
+2. **登录 npm**：
+
+```bash
+npm login
+```
+
+3. **确保 `package.json` 配置正确**：
+
+```json
+{
+  "name": "your-mcp-server-name",
+  "version": "1.0.0",
+  "description": "A brief description of your MCP server",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "your-mcp-server-name": "dist/index.js"
+  },
+  "files": ["dist"],
+  "keywords": ["mcp", "model-context-protocol"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/your-repo"
+  }
+}
+```
+
+4. **编译并发布**：
+
+```bash
+npm run build
+npm publish --access public
+```
+
+发布后，任何人都可以通过 `npx your-mcp-server-name` 运行你的 Server。
+
+### 第三步（可选）：发布到 MCP Registry
+
+MCP Registry 是官方的 MCP Server 注册表，发布后可以被更多人发现。
+
+1. **安装 `mcp-publisher` CLI**：
+
+```bash
+# macOS / Linux
+brew install mcp-publisher
+
+# 或下载预构建二进制
+# 见 https://github.com/modelcontextprotocol/registry/releases
+```
+
+2. **初始化 `server.json`**：
+
+```bash
+mcp-publisher init
+```
+
+3. **按提示填写信息并提交**。
+
+> 注意：MCP Registry 目前处于预览阶段，API 可能变化。
+
+### 第四步：让别人使用你的 Server
+
+告诉用户在他们的 MCP 配置中添加：
+
+```json
+{
+  "mcpServers": {
+    "your-server": {
+      "command": "npx",
+      "args": ["-y", "your-mcp-server-name"]
+    }
+  }
+}
+```
+
+---
+
+## 常见问题
+
+### Q: MCP Server 和 API 有什么区别？
+
+MCP Server 是一个标准化协议，而普通 API（REST/GraphQL）需要每个 AI 客户端自己写集成代码。MCP 提供了统一的发现、调用、错误处理机制，让 AI 客户端可以自动理解和使用你的工具。
+
+### Q: MCP Server 安全吗？
+
+MCP 内置了安全机制：
+- Server 以最小权限运行
+- 每个 Server 相互隔离
+- 工具调用需要用户确认（取决于 Host 实现）
+- 通信基于 JSON-RPC，支持认证
+
+### Q: 可以用 Python 写 MCP Server 吗？
+
+可以！MCP 有官方的 Python SDK：
+
+```bash
+pip install mcp
+```
+
+```python
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("my-server")
+
+@mcp.tool()
+def add(a: int, b: int) -> int:
+    """Add two numbers"""
+    return a + b
+
+mcp.run()
+```
+
+### Q: stdio 和 HTTP 传输方式怎么选？
+
+- **stdio**：最简单，适合本地运行，Server 作为子进程启动
+- **Streamable HTTP**：适合远程部署，多客户端共享同一个 Server 实例
+
+大多数场景用 stdio 就够了。
+
+### Q: 如何调试 MCP Server？
+
+1. 使用 `console.error()` 打印日志（不要用 `console.log`，因为 stdout 被 MCP 协议占用）
+2. 使用 MCP Inspector：`npx @modelcontextprotocol/inspector node dist/index.js`
+3. 在 Cursor 中查看 MCP 面板的连接状态
+
+---
+
+## 参考资料
+
+- [MCP 官方文档](https://modelcontextprotocol.io/)
+- [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)
+- [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
+- [MCP Registry](https://modelcontextprotocol.io/registry)
+- [MCP Servers 合集](https://github.com/modelcontextprotocol/servers)
