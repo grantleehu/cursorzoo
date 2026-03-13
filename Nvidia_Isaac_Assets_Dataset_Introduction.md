@@ -174,7 +174,254 @@ NVIDIA Isaac GR00T 提供专用的合成数据生成蓝图：
 
 ---
 
-## 8. 相关链接
+## 8. 数据样例
+
+以下提供各类数据集的具体数据样例，帮助理解数据的实际格式与内容。
+
+### 8.1 仓储资产目录样例（SimReady-Warehouse-01 CSV）
+
+CSV 目录文件 `physical_ai_simready_warehouse_01.csv` 中的每条记录描述一个 3D 资产：
+
+```csv
+thumbnail_path,mass(kg),q_code,label,classification,relative_path,asset_name
+thumbnails/Pallets_A1.png,25.0,Q814951,pallet,Prop,Props/Pallets/Pallets_A1/Pallets_A1.usd,Pallets_A1
+thumbnails/Pallets_A2.png,22.5,Q814951,pallet,Prop,Props/Pallets/Pallets_A2/Pallets_A2.usd,Pallets_A2
+thumbnails/ConveyorBelt_A1.png,150.0,Q1142498,conveyor belt,Assembly,Assemblies/ConveyorBelt_A1/ConveyorBelt_A1.usd,ConveyorBelt_A1
+thumbnails/CardboardBox_A1.png,0.8,Q1379659,cardboard box,Prop,Props/Boxes/CardboardBox_A1/CardboardBox_A1.usd,CardboardBox_A1
+thumbnails/Warehouse_Small.png,0,Q1362872,warehouse,Scenario,Scenarios/Warehouse_Small/Warehouse_Small.usd,Warehouse_Small
+```
+
+**字段说明：**
+
+| 字段 | 含义 | 示例值 |
+|------|------|--------|
+| `thumbnail_path` | 缩略图路径（PNG） | `thumbnails/Pallets_A1.png` |
+| `mass(kg)` | 物体近似质量（千克） | `25.0` |
+| `q_code` | WikiData 语义标签 Q 编码 | `Q814951`（托盘） |
+| `label` | Q 编码的英文标签 | `pallet` |
+| `classification` | 资产分类 | `Prop` / `Assembly` / `Scenario` |
+| `relative_path` | USD 文件在归档中的相对路径 | `Props/Pallets/Pallets_A1/Pallets_A1.usd` |
+| `asset_name` | 资产名称 | `Pallets_A1` |
+
+### 8.2 机器人资产文件结构样例（Franka Panda）
+
+以 Franka Panda 机械臂为例，一个完整的机器人资产目录结构如下：
+
+```
+/Isaac/Robots/FrankaRobotics/FrankaPanda/
+├── franka.usd                  # 最终组合文件（入口）
+├── franka_base.usd             # 基础结构层
+├── franka_physics.usd          # 物理属性层
+├── franka_sensors.usd          # 传感器层
+├── franka_control.usd          # 控制图层
+├── parts/
+│   ├── link0.usd               # 基座
+│   ├── link1.usd               # 关节 1 连杆
+│   ├── link2.usd               # 关节 2 连杆
+│   ├── link3.usd               # 关节 3 连杆
+│   ├── link4.usd               # 关节 4 连杆
+│   ├── link5.usd               # 关节 5 连杆
+│   ├── link6.usd               # 关节 6 连杆
+│   ├── link7.usd               # 关节 7 连杆（末端）
+│   ├── hand.usd                # 夹爪基座
+│   ├── finger_left.usd         # 左手指
+│   └── finger_right.usd        # 右手指
+└── materials/
+    └── franka_materials.usd    # PBR 材质
+```
+
+USD 文件内部 Prim 层级结构示意：
+
+```
+/panda                                  (defaultPrim, Articulation Root)
+├── /panda/link0                        (Rigid Body, Collider)
+│   ├── /panda/link0/visuals            (Mesh - 渲染用)
+│   └── /panda/link0/collisions         (Mesh - 碰撞检测用)
+├── /panda/link1                        (Rigid Body, Collider)
+│   └── ...
+├── /panda/panda_joint1                 (Revolute Joint: link0 → link1)
+│   ├── physics:lowerLimit = -2.8973    (弧度)
+│   ├── physics:upperLimit = 2.8973
+│   └── drive:angular:physics:damping = 1000.0
+├── /panda/panda_joint2                 (Revolute Joint: link1 → link2)
+│   └── ...
+├── ...
+├── /panda/hand                         (Rigid Body)
+├── /panda/finger_joint_left            (Prismatic Joint: hand → finger_left)
+│   ├── physics:lowerLimit = 0.0        (米)
+│   └── physics:upperLimit = 0.04
+└── /panda/finger_joint_right           (Prismatic Joint: hand → finger_right)
+```
+
+### 8.3 操控数据集样例（Manipulation-Augmented HDF5）
+
+数据集文件 `mimic_dataset_1k.hdf5` 中每条轨迹的数据结构：
+
+```
+mimic_dataset_1k.hdf5
+└── data/
+    ├── demo_0/                              # 第 1 条演示轨迹
+    │   ├── actions                          # shape: (T, 7) — T 为时间步数
+    │   │   # 每个时间步: [dx, dy, dz, droll, dpitch, dyaw, gripper]
+    │   │   # 前 6 维: 末端执行器相对位移/旋转; 第 7 维: 夹爪开合
+    │   ├── obs/
+    │   │   ├── table_rgb                    # shape: (T, 200, 200, 3), uint8
+    │   │   ├── table_depth                  # shape: (T, 200, 200, 1), float32
+    │   │   ├── table_segmentation           # shape: (T, 200, 200, 1), uint8
+    │   │   ├── table_surface_normal         # shape: (T, 200, 200, 3), float32
+    │   │   └── wrist_rgb                    # shape: (T, 200, 200, 3), uint8
+    │   ├── states                           # shape: (T, N) — 机器人全状态
+    │   └── attrs/
+    │       ├── num_samples: 187             # 该轨迹的时间步数
+    │       └── task: "stack_cubes"          # 任务名称
+    ├── demo_1/
+    │   └── ...
+    ├── demo_2/
+    │   └── ...
+    └── ...（共 1,000 条演示）
+```
+
+**单个时间步数据样例：**
+
+```json
+{
+  "action": [0.002, -0.015, 0.008, 0.001, -0.003, 0.012, 1.0],
+  "obs": {
+    "table_rgb": "/* 200x200x3 uint8 图像数组 */",
+    "table_depth": "/* 200x200x1 float32 深度图, 单位: 米 */",
+    "table_segmentation": "/* 200x200x1 uint8 语义分割掩码: 0=背景, 1=蓝色方块, 2=红色方块, 3=绿色方块, 4=机械臂 */",
+    "table_surface_normal": "/* 200x200x3 float32 表面法线图 */",
+    "wrist_rgb": "/* 200x200x3 uint8 腕部相机图像 */"
+  },
+  "state": {
+    "joint_positions": [0.12, -0.57, 0.08, -2.35, 0.01, 1.87, 0.73],
+    "joint_velocities": [0.001, -0.003, 0.002, 0.001, 0.000, -0.001, 0.001],
+    "ee_position": [0.45, 0.12, 0.28],
+    "ee_orientation": [0.707, 0.0, 0.707, 0.0],
+    "gripper_width": 0.04
+  }
+}
+```
+
+### 8.4 NuRec 场景重建数据集样例
+
+NuRec 数据集中每个场景的文件结构：
+
+```
+PhysicalAI-Robotics-NuRec/
+├── nova_carter-cafe/
+│   ├── stage.usdz                   # 3DGUT 场景文件 (可直接加载到 Isaac Sim)
+│   ├── mesh/
+│   │   └── collision_mesh.usd       # nvblox 生成的碰撞检测网格
+│   └── occupancy_map/
+│       └── occupancy_map.png        # 2D 占用网格图 (黑=障碍, 白=可通行)
+├── nova_carter-galileo/
+│   ├── stage.usdz
+│   ├── mesh/
+│   │   └── collision_mesh.usd
+│   └── occupancy_map/
+│       └── occupancy_map.png
+├── nova_carter-wormhole/
+│   └── ...
+└── zh_lounge/
+    └── usd/
+        └── zh_lounge.usda           # ASCII 格式 USD 场景
+```
+
+**场景特点说明：**
+
+| 场景名 | 描述 | 用途 |
+|--------|------|------|
+| `nova_carter-cafe` | 咖啡厅环境，由 Nova Carter 机器人采集 | 室内导航、避障 |
+| `nova_carter-galileo` | 实验室/办公环境 | 移动机器人路径规划 |
+| `nova_carter-wormhole` | 复杂走廊环境 | 狭窄空间导航测试 |
+| `zh_lounge` | 休息室环境 | 室内场景理解 |
+
+### 8.5 Replicator 合成数据输出样例
+
+通过 Replicator 生成的感知训练数据，输出目录结构如下：
+
+```
+output_dataset/
+├── rgb/
+│   ├── 000000.png                   # 200x200 或自定义分辨率 RGB 图像
+│   ├── 000001.png
+│   └── ...
+├── depth/
+│   ├── 000000.npy                   # float32 深度图 (单位: 米)
+│   └── ...
+├── semantic_segmentation/
+│   ├── 000000.png                   # 语义分割掩码
+│   └── ...
+├── instance_segmentation/
+│   ├── 000000.png                   # 实例分割掩码
+│   └── ...
+├── object_detection.json            # 汇总的目标检测标注
+└── camera_params/
+    ├── 000000.json                  # 相机内外参
+    └── ...
+```
+
+**`object_detection.json` 标注样例（单帧）：**
+
+```json
+{
+  "frame_id": 0,
+  "objects": [
+    {
+      "class": "pallet_jack",
+      "semantic_id": 1,
+      "instance_id": 101,
+      "bbox_2d_tight": [120, 85, 310, 195],
+      "bbox_2d_loose": [115, 80, 315, 200],
+      "bbox_3d": {
+        "center": [1.25, 0.45, 0.30],
+        "dimensions": [1.20, 0.68, 0.35],
+        "orientation": [0.0, 0.0, 0.15, 0.99]
+      },
+      "visibility": 0.92,
+      "occlusion": 0.08
+    },
+    {
+      "class": "cardboard_box",
+      "semantic_id": 2,
+      "instance_id": 201,
+      "bbox_2d_tight": [50, 140, 95, 180],
+      "bbox_2d_loose": [45, 135, 100, 185],
+      "bbox_3d": {
+        "center": [2.10, -0.30, 0.15],
+        "dimensions": [0.40, 0.30, 0.30],
+        "orientation": [0.0, 0.0, 0.0, 1.0]
+      },
+      "visibility": 1.0,
+      "occlusion": 0.0
+    }
+  ],
+  "camera": {
+    "intrinsics": [[600.0, 0, 100.0], [0, 600.0, 100.0], [0, 0, 1]],
+    "extrinsics": {
+      "position": [0.0, 2.5, 1.8],
+      "orientation": [0.924, -0.383, 0.0, 0.0]
+    }
+  }
+}
+```
+
+**字段说明：**
+
+| 字段 | 含义 |
+|------|------|
+| `bbox_2d_tight` | 紧凑 2D 边界框 `[x_min, y_min, x_max, y_max]`（像素） |
+| `bbox_2d_loose` | 宽松 2D 边界框（含边距） |
+| `bbox_3d.center` | 3D 边界框中心坐标 `[x, y, z]`（米） |
+| `bbox_3d.dimensions` | 3D 边界框尺寸 `[长, 宽, 高]`（米） |
+| `bbox_3d.orientation` | 四元数旋转 `[x, y, z, w]` |
+| `visibility` | 可见比例（0.0~1.0） |
+| `occlusion` | 遮挡比例（0.0~1.0） |
+
+---
+
+## 9. 相关链接
 
 | 资源 | 链接 |
 |------|------|
