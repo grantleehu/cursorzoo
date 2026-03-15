@@ -1,0 +1,15 @@
+name = "cloudnotes"
+main = "worker.js"
+compatibility_date = "2024-12-01"
+
+# Create a KV namespace first:
+#   npx wrangler kv namespace create NOTES
+# Then fill in the id below.
+
+[[kv_namespaces]]
+binding = "NOTES"
+id = "<YOUR_KV_NAMESPACE_ID>"
+
+# Optional: protect write operations with a token
+# [vars]
+# API_TOKEN = "your-secret-token"
