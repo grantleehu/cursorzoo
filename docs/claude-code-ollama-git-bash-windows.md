@@ -113,10 +113,28 @@ winget install Anthropic.ClaudeCode
 ```
 
 > **注意：** 通过 PowerShell / CMD 原生安装器安装的版本会自动更新；WinGet 安装的版本需要手动更新。
+>
+> **三种方式安装的二进制文件位置相同：** `%USERPROFILE%\.local\bin\claude.exe`，Git Bash 会继承 Windows 的 PATH，因此**无论用哪种方式安装，都可以在 Git Bash 中调用 `claude` 命令**。
 
-### 3.1 配置 Git Bash 路径（如果 Claude Code 找不到 Git Bash）
+### 3.1 在 Git Bash 中找不到 `claude` 命令？
 
-如果 Claude Code 无法自动检测 Git Bash，需要手动配置。编辑 Claude Code 的 `settings.json`：
+安装完成后必须**关掉并重新打开** Git Bash，PATH 才会刷新。如果重启后仍然提示 `command not found`，手动将安装目录加入 PATH：
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+验证：
+
+```bash
+which claude
+# 应输出: /c/Users/你的用户名/.local/bin/claude
+```
+
+### 3.2 配置 Git Bash 路径（推荐）
+
+Claude Code 内部执行 shell 命令（如 Git hooks）时默认使用 `cmd.exe`。为了让它改用 Git Bash 执行，避免 Unix shell 语法报错，在 `~/.claude/settings.json` 中添加：
 
 ```json
 {
@@ -126,7 +144,7 @@ winget install Anthropic.ClaudeCode
 }
 ```
 
-配置文件位置通常在：`%APPDATA%\claude-code\settings.json`
+> 如果 `~/.claude/settings.json` 不存在，手动创建即可。
 
 ---
 
