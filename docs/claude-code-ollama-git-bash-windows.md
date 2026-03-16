@@ -239,22 +239,42 @@ ollama launch claude --model kimi-k2.5:cloud
 
 ## 常见问题
 
-### Q: Git Bash 中输入 `claude` 提示找不到命令？
+### Q: CMD 里安装的工具（Node.js / Claude Code / Ollama）在 Git Bash 中找不到？
 
-Claude Code 安装后需要重启 Git Bash 让 PATH 生效。如果重启后仍然不行，手动将安装目录加入 PATH：
+这是最常见的问题。Git Bash 启动时从 Windows 环境变量读取 PATH，但安装新软件后已打开的终端不会自动刷新。
 
-```bash
-# 在 ~/.bashrc 中添加
-export PATH="$PATH:/c/Users/你的用户名/AppData/Local/Programs/claude-code"
-```
+**第一步：关掉所有终端窗口，重新打开 Git Bash。** 如果还不行，注销 Windows 重新登录。
 
-### Q: Git Bash 中输入 `ollama` 提示找不到命令？
-
-同样需要确保 Ollama 在 PATH 中：
+**第二步：如果重启后仍然 `command not found`，手动配置 PATH。** 在 Git Bash 中运行以下一次性修复脚本：
 
 ```bash
-export PATH="$PATH:/c/Users/你的用户名/AppData/Local/Programs/Ollama"
+cat >> ~/.bashrc << 'EOF'
+
+# ===== Windows 工具 PATH 配置（Git Bash）=====
+# Node.js
+export PATH="/c/Program Files/nodejs:$PATH"
+# npm 全局包
+export PATH="$HOME/AppData/Roaming/npm:$PATH"
+# Claude Code
+export PATH="$HOME/.local/bin:$PATH"
+# Ollama（如果默认路径找不到，取消下面的注释）
+# export PATH="/c/Users/$USER/AppData/Local/Programs/Ollama:$PATH"
+EOF
+
+source ~/.bashrc
 ```
+
+> **Windows → Git Bash 路径转换规则：** `C:\Program Files\nodejs` → `/c/Program Files/nodejs`
+
+**第三步：验证：**
+
+```bash
+node --version && npm --version && echo "Node.js OK"
+claude --version && echo "Claude Code OK"
+ollama --version && echo "Ollama OK"
+```
+
+> **提示：** 如果不确定某个工具装在哪里，在 CMD 中运行 `where node`（或 `where claude`）查看路径，然后转成 Git Bash 格式加入 PATH。
 
 ### Q: Ollama 模型下载很慢？
 
