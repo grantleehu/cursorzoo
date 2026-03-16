@@ -1,3 +1,6 @@
+# This file is only needed if you deploy via `npx wrangler deploy`.
+# For Cloudflare Dashboard deployment, see README.md — no config files needed.
+
 name = "cloudnotes"
 main = "worker.js"
 compatibility_date = "2024-12-01"
