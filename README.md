@@ -98,6 +98,12 @@ Open the Worker URL in a browser. The web UI supports:
 
 All examples assume `URL=https://cloudnotes.your-subdomain.workers.dev`. Add `-H "Authorization: Bearer YOUR_TOKEN"` if you set an API token.
 
+### Export all notes as a text file
+
+```bash
+curl $URL/api/export -o cloudnotes.txt
+```
+
 ### List all notes
 
 ```bash
@@ -202,13 +208,14 @@ note rm my-note                  # delete
 
 ## API Reference
 
-| Method   | Path              | Description     | Body                                      |
-|----------|-------------------|-----------------|--------------------------------------------|
-| `GET`    | `/api/notes`      | List all notes  | —                                          |
-| `POST`   | `/api/notes`      | Create a note   | `{id?, title?, content?, tags?}`           |
-| `GET`    | `/api/notes/:id`  | Get a note      | —                                          |
-| `PUT`    | `/api/notes/:id`  | Update a note   | `{title?, content?, tags?}`                |
-| `DELETE` | `/api/notes/:id`  | Delete a note   | —                                          |
+| Method   | Path              | Description              | Body                                      |
+|----------|-------------------|--------------------------|---------------------------------------------|
+| `GET`    | `/api/notes`      | List all notes           | —                                           |
+| `POST`   | `/api/notes`      | Create a note            | `{id?, title?, content?, tags?}`            |
+| `GET`    | `/api/notes/:id`  | Get a note               | —                                           |
+| `PUT`    | `/api/notes/:id`  | Update a note            | `{title?, content?, tags?}`                 |
+| `DELETE` | `/api/notes/:id`  | Delete a note            | —                                           |
+| `GET`    | `/api/export`     | Export all as text file  | —                                           |
 
 Query parameters on `GET /api/notes`:
 - `limit` — max notes to return (default 100)

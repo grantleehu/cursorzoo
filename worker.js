@@ -43,6 +43,11 @@ async function handleAPI(request, env, url, path) {
     if (err) return err;
   }
 
+  // GET /api/export — download all notes as text file
+  if (path === "/api/export" && method === "GET") {
+    return exportNotes(env);
+  }
+
   // GET /api/notes — list
   if (path === "/api/notes" && method === "GET") {
     return listNotes(env, url);
@@ -151,6 +156,45 @@ async function updateNote(request, env, id) {
 async function deleteNote(env, id) {
   await env.NOTES.delete(`note:${id}`);
   return json({ ok: true, id });
+}
+
+// ---- Export all notes as plain text ----
+async function exportNotes(env) {
+  const all = [];
+  let cursor = undefined;
+  do {
+    const list = await env.NOTES.list({ prefix: "note:", limit: 100, cursor });
+    const batch = await Promise.all(
+      list.keys.map((k) => env.NOTES.get(k.name, "json"))
+    );
+    all.push(...batch.filter(Boolean));
+    cursor = list.list_complete ? null : list.cursor;
+  } while (cursor);
+
+  all.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+
+  const divider = "=".repeat(60);
+  const text = all
+    .map((n) => {
+      const parts = [divider, `Title:   ${n.title || "(untitled)"}`];
+      if (n.tags?.length) parts.push(`Tags:    ${n.tags.join(", ")}`);
+      parts.push(`Date:    ${n.updated_at}`);
+      parts.push(`ID:      ${n.id}`);
+      parts.push(divider, "", n.content || "", "");
+      return parts.join("\n");
+    })
+    .join("\n");
+
+  const header = `CloudNotes Export  |  ${all.length} notes  |  ${new Date().toISOString()}\n\n`;
+  const filename = `cloudnotes-${new Date().toISOString().slice(0, 10)}.txt`;
+
+  return new Response(header + text, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      ...corsHeaders(),
+    },
+  });
 }
 
 // ======================== Helpers ========================
@@ -367,6 +411,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 <div class="view" id="listView">
   <div class="topbar">
     <h1>Cloud<b>Notes</b></h1>
+    <button class="btn btn-icon" onclick="exportAll()" title="Export all">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    </button>
     <button class="btn btn-icon" onclick="setToken()" title="Set token">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
     </button>
@@ -411,6 +458,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
 <div id="desktopView" style="display:none">
   <div class="topbar">
     <h1>Cloud<b>Notes</b></h1>
+    <button class="btn btn-icon" onclick="exportAll()" title="Export all">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    </button>
     <button class="btn btn-icon" onclick="setToken()" title="Set token">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
     </button>
@@ -638,6 +688,17 @@ function timeAgo(iso) {
   if (diff < 86400) return Math.floor(diff / 3600) + "h ago";
   if (diff < 2592000) return Math.floor(diff / 86400) + "d ago";
   return d.toLocaleDateString();
+}
+
+function exportAll() {
+  const url = BASE + "/api/export" + (token ? "?token=" + encodeURIComponent(token) : "");
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  toast("Exporting...", "success");
 }
 
 function setToken() {
